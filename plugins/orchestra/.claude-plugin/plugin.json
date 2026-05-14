@@ -1,6 +1,6 @@
 {
   "name": "orchestra",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.7이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출. /orchestra 명령으로 6단계 워크플로(Brief → Plan Research → Research × N → Synthesize → Review → Decide) 실행.",
   "author": {
     "name": "jungwooyoon"

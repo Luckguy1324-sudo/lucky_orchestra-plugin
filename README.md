@@ -73,8 +73,26 @@ Claude Code 세션에서 두 줄:
 | Claude Code | ✅ | CLI / 데스크톱 / IDE 확장 모두 가능 |
 | ChatGPT Pro 계정 | ✅ | Deep Research 사용 권장 |
 | Bash | ✅ | macOS/Linux 기본. Windows는 Git Bash 또는 WSL2 |
-| Python 3 + PyYAML | ⚠️ 권장 | 없으면 score-check.sh가 grep 폴백 |
-| gstack browse | ⚠️ 권장 | 없으면 reviewer-bridge가 MANUAL 모드 (사용자 직접 paste) |
+| Python 3.8+ + Playwright + Chromium | ⚠️ 권장 | ChatGPT 자동화에 필수. 없으면 MANUAL 모드 (사용자 직접 paste) |
+| PyYAML | ⚠️ 권장 | 없으면 score-check.sh가 grep 폴백 |
+
+### 자동화 설치 (Stage 2/5 ChatGPT 자동 입력/수확)
+
+v0.2.0부터 ChatGPT 자동화가 포함됐습니다. plugin 설치 후 한 번 실행:
+
+```bash
+bash ~/.claude/plugins/cache/lucky-orchestra/orchestra/0.2.0/skills/orchestra/scripts/setup.sh
+```
+
+(경로의 `0.2.0`은 실제 설치된 버전에 맞춰 변경. `/plugin list`로 확인)
+
+설치되는 것:
+- Playwright (Python 패키지, `pip --user`로 설치)
+- Chromium 브라우저 (~200MB, Playwright 전용 격리 설치)
+
+**첫 실행 시**: orchestra가 Stage 2 단계에서 브라우저 창을 열어줍니다 (headed 모드). ChatGPT에 로그인하면 `~/.orchestra/chrome-profile/`에 세션이 저장돼 이후 자동 재사용됩니다.
+
+자동화를 건너뛰고 싶으면 setup.sh를 실행하지 마세요. orchestra는 자동으로 MANUAL 모드로 fallback합니다 (사용자가 직접 paste).
 
 ## 사용법
 

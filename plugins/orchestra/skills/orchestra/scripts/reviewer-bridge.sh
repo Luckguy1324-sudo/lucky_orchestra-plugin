@@ -88,39 +88,62 @@ esac
 
 START_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# Best-effort browser automation. Implementation depends on local gstack/browse
-# capabilities. We delegate to a Python helper that uses the gstack browse skill
-# under the hood. If the helper is missing, fall back to MANUAL mode.
+# Locate the Playwright helper. It lives next to this script.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+HELPER="${SCRIPT_DIR}/reviewer-bridge-helper.py"
 
-HELPER="${HOME}/.claude/skills/orchestra/scripts/.reviewer-bridge-helper.py"
+# Determine python executable
+PY=""
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    PY="$candidate"
+    break
+  fi
+done
 
-if command -v gstack >/dev/null 2>&1 && [[ -x "$HELPER" ]]; then
-  # Automated path
-  "$HELPER" \
+# Check if Playwright is available
+PLAYWRIGHT_OK=0
+if [[ -n "$PY" ]] && "$PY" -c "import playwright" >/dev/null 2>&1; then
+  PLAYWRIGHT_OK=1
+fi
+
+if [[ -f "$HELPER" ]] && [[ "$PLAYWRIGHT_OK" -eq 1 ]]; then
+  # Automated path via Playwright
+  set +e
+  "$PY" "$HELPER" \
     --url "$URL" \
     --mode "$MODE" \
     --poll-interval "$POLL_INTERVAL" \
     --poll-max "$POLL_MAX" \
     --prompt-file "$PROMPT_FILE" \
-    --output-file "${OUTPUT_FILE}.raw" \
-    || EXIT_CODE=$?
+    --output-file "${OUTPUT_FILE}.raw"
+  EXIT_CODE=$?
+  set -e
 
-  EXIT_CODE="${EXIT_CODE:-0}"
   if [[ "$EXIT_CODE" -ne 0 ]]; then
+    echo "reviewer-bridge-helper exited with code $EXIT_CODE" >&2
     exit "$EXIT_CODE"
   fi
 else
-  # Manual fallback — show instructions to the user
+  # MANUAL fallback
   echo "================================================================" >&2
-  echo "MANUAL MODE: gstack browser automation not available." >&2
+  echo "MANUAL MODE — browser automation unavailable." >&2
+  if [[ ! -f "$HELPER" ]]; then
+    echo "Reason: helper script not found at $HELPER" >&2
+  elif [[ -z "$PY" ]]; then
+    echo "Reason: python3 not on PATH" >&2
+  else
+    echo "Reason: playwright not installed. Run setup.sh in the same directory." >&2
+  fi
   echo "" >&2
-  echo "1. Open: $URL" >&2
-  echo "2. Select model mode: $LABEL" >&2
-  echo "3. Paste content from: $PROMPT_FILE" >&2
-  echo "4. Wait for response (estimated: $((POLL_MAX/60)) min max)" >&2
-  echo "5. Copy assistant response to: ${OUTPUT_FILE}.raw" >&2
+  echo "수동 진행 절차:" >&2
+  echo "  1. 브라우저에서 열기: $URL" >&2
+  echo "  2. 모델 모드 선택: $LABEL" >&2
+  echo "  3. 다음 파일 내용을 ChatGPT에 paste: $PROMPT_FILE" >&2
+  echo "  4. 응답 대기 (예상 최대 $((POLL_MAX/60))분)" >&2
+  echo "  5. 응답 텍스트를 다음 파일에 저장: ${OUTPUT_FILE}.raw" >&2
   echo "" >&2
-  echo "Press Enter when ${OUTPUT_FILE}.raw is ready..." >&2
+  echo "준비되면 Enter를 누르세요..." >&2
   read -r _ </dev/tty || true
 fi
 
