@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.1] - 2026-05-15
+
+### Changed
+- **GENERATING phase에 시간 제한 제거** — ChatGPT가 응답 만드는 시간(특히 Deep Research)이 길어져도 자동화가 끊지 않음
+- 폴링 모델을 3-페이즈 상태 머신으로 재설계:
+  - Phase 1 (WAITING_FOR_START): submit ↔ generating 사이. 모드별 START_TIMEOUT
+  - Phase 2 (GENERATING): "Stop streaming" 버튼 visible. **타임아웃 없음**
+  - Phase 3 (EXTRACTING): 생성 멈춤 후 텍스트 안정화 대기. 모드별 EXTRACT_TIMEOUT
+- 모드별 예산을 두 값으로 분리: `START_TIMEOUT` / `EXTRACT_TIMEOUT` (기존 `POLL_MAX` 단일 값 폐기)
+- Deep Research 새 예산: START 3분 / EXTRACT 10분 / GENERATING 무제한 (기존: 30분 하드캡)
+- 폴링 간격 짧아짐 (예: deep-research 5분 → 30초): 더 정확한 진행 상황 표시
+
+### Added
+- 오류 자동 감지 강화:
+  - "Something went wrong" / "Network error" / "Rate limit" 배너 → 즉시 실패
+  - 실행 중 sign-in 페이지 출현 → 즉시 인증 오류 (exit 2)
+  - 브라우저 페이지 closed/crashed → 즉시 실패
+- Phase 전환 hysteresis (GENERATING→EXTRACTING 2회 연속 확인 필요) — 스트리밍 일시 정지로 인한 오탐 방지
+- 진행 로그에 elapsed 시간 (HH:MM:SS) 표시
+
+### Migration
+v0.2.0 → v0.2.1: 코드만 변경, 사용자 작업 없음. `/plugin update orchestra` 후 새 세션부터 적용.
+
 ## [0.2.0] - 2026-05-15
 
 ### Added

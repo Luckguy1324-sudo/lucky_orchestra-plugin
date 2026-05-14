@@ -54,30 +54,45 @@ done
 [[ -z "$MODE" || -z "$PROMPT_FILE" || -z "$OUTPUT_FILE" ]] && usage
 [[ -f "$PROMPT_FILE" ]] || { echo "prompt-file not found: $PROMPT_FILE" >&2; exit 5; }
 
-# Mode → URL / polling policy
+# Mode → URL / phase-budget policy
+#
+# Policy design:
+#   POLL_INTERVAL  — how often the helper checks page state
+#   START_TIMEOUT  — max wait between submit and first "generating" signal
+#                    (catches submit failures, NOT ChatGPT thinking time)
+#   EXTRACT_TIMEOUT — max wait after generating stops for text to stabilize
+#                     (catches fetch/render failures, NOT thinking time)
+#
+# The "GENERATING" phase between these has NO time limit. Deep Research can
+# legitimately run for hours and we'll keep waiting as long as ChatGPT's
+# "Stop streaming" button is visible.
 case "$MODE" in
   deep-research)
     URL="https://chatgpt.com/?model=deep-research"
-    POLL_INTERVAL=300        # 5 minutes
-    POLL_MAX=1800            # 30 minutes
+    POLL_INTERVAL=30         # check every 30s
+    START_TIMEOUT=180        # 3 min to start (DR sometimes takes a while to begin)
+    EXTRACT_TIMEOUT=600      # 10 min to extract final text after generation stops
     LABEL="Pro Deep Research"
     ;;
   pro-reasoning)
     URL="https://chatgpt.com/?model=gpt-5-pro"
-    POLL_INTERVAL=30
-    POLL_MAX=300
+    POLL_INTERVAL=15
+    START_TIMEOUT=60
+    EXTRACT_TIMEOUT=120
     LABEL="Pro Reasoning (Extended)"
     ;;
   thinking)
     URL="https://chatgpt.com/?model=gpt-5-thinking"
-    POLL_INTERVAL=15
-    POLL_MAX=120
+    POLL_INTERVAL=10
+    START_TIMEOUT=30
+    EXTRACT_TIMEOUT=60
     LABEL="Thinking"
     ;;
   standard)
     URL="https://chatgpt.com/?model=gpt-5"
     POLL_INTERVAL=5
-    POLL_MAX=30
+    START_TIMEOUT=15
+    EXTRACT_TIMEOUT=30
     LABEL="Standard"
     ;;
   *)
@@ -114,7 +129,8 @@ if [[ -f "$HELPER" ]] && [[ "$PLAYWRIGHT_OK" -eq 1 ]]; then
     --url "$URL" \
     --mode "$MODE" \
     --poll-interval "$POLL_INTERVAL" \
-    --poll-max "$POLL_MAX" \
+    --start-timeout "$START_TIMEOUT" \
+    --extract-timeout "$EXTRACT_TIMEOUT" \
     --prompt-file "$PROMPT_FILE" \
     --output-file "${OUTPUT_FILE}.raw"
   EXIT_CODE=$?
@@ -140,7 +156,7 @@ else
   echo "  1. 브라우저에서 열기: $URL" >&2
   echo "  2. 모델 모드 선택: $LABEL" >&2
   echo "  3. 다음 파일 내용을 ChatGPT에 paste: $PROMPT_FILE" >&2
-  echo "  4. 응답 대기 (예상 최대 $((POLL_MAX/60))분)" >&2
+  echo "  4. ChatGPT 응답 완료까지 대기 (Deep Research는 시간 제한 없음)" >&2
   echo "  5. 응답 텍스트를 다음 파일에 저장: ${OUTPUT_FILE}.raw" >&2
   echo "" >&2
   echo "준비되면 Enter를 누르세요..." >&2
