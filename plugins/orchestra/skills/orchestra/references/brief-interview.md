@@ -108,6 +108,7 @@ created_at: <ISO 8601>
 stage2_model: <set in Stage 1.5>
 stage5_model: <set in Stage 1.5>
 max_rounds: <int>
+pass_threshold: 8.0
 constraints:
   - markdown
   - korean

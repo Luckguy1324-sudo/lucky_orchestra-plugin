@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.4.0] - 2026-05-17
+
+협업 품질 직접 향상 4가지 — performer 표준화, 프롬프트 구조화, must_fix 자동 라우팅, provenance 자동 부착.
+
+### Added
+
+- **`agents/research-worker.md`** — Named subagent for Stage 3 Performer:
+  - Read-only tool권한 (`Read, WebFetch, Glob, Grep`) — 자기 토픽 밖 부작용 방지
+  - 토픽 격리 강제, 인용 `[r<N>]` 양식 강제, fact/interpretation/assumption 구분 요구
+  - Round ≥ 2 시 `previous_must_fix` 직접 처리 + "must_fix addressed" 섹션 자동 작성
+- **`scripts/build-provenance.py`** — 자동 출처 섹션 생성기:
+  - run_id, started_at, 사용 모델, 라운드별 verdict/score, 참조자료, 파일 목록을 종합한 markdown 출력
+  - Stage 6 (finalize) 시 `final.md` 뒤에 자동 append
+  - PyYAML 없어도 동작 (minimal parser fallback)
+- **must_fix → Performer 자동 라우팅** (Stage 3 Round N≥2):
+  - Reviewer가 `scope_topic_id`로 표시한 항목은 해당 토픽 Performer 프롬프트에만 주입
+  - `scope_topic_id: null` 항목은 모든 Performer에 공통 전달 (synthesis-level이면 Conductor가 Stage 4에서 처리)
+
+### Changed
+
+- **`references/plan-prompt.md`** — 재설계: XML-tagged 섹션 + 단일 JSON 코드블록 출력 강제
+  - `<role>`, `<objective>`, `<success_criterion>`, `<constraints>`, `<references>`, `<rules>`, `<output_format>` 구조
+  - "shape-priming" 효과: schema와 example 같이 제공해 형식 위반 감소
+  - "Now produce the JSON." trigger phrase로 자유 산문 시작 방지
+- **`references/reviewer-prompt.md`** — 재설계: 동일 XML 구조
+  - `must_fix` 항목에 `scope_topic_id` 필드 추가
+  - `<consistency_rules>` 섹션으로 PASS-but-low-score / PASS-with-must_fix 자기모순 차단을 모델에게 명시
+  - `<previous_review>` 섹션 (Round ≥ 2)으로 직전 must_fix 해결 여부 점검 강제
+- **`SKILL.md` Stage 3**: research-worker subagent 사용 + must_fix 자동 주입 흐름 명시
+- **`SKILL.md` Stage 4 (Synthesize)**: must_fix 처리 양분 (Performer가 본 항목 vs synthesis-level) + 라운드별 변경사항 섹션 추가 요구
+- **`SKILL.md` Stage 6 (Decide)**: finalize 단계에서 `build-provenance.py` 자동 호출 + PASS_WITH_WARNINGS 경고 헤더 처리
+- **`brief-interview.md`**: frontmatter에 `pass_threshold: 8.0` 명시 (기본값)
+- **출력 형식 권장**: YAML → **JSON** (둘 다 수용하지만 JSON 우선)
+
+### Compatibility
+
+- 기존 v0.3.x run 디렉토리와 호환 — meta.json/01-brief.md 형식 변경 없음 (pass_threshold만 신규 필드)
+- 마이그레이션: `/plugin update orchestra` + 새 Claude Code 세션. 추가 작업 없음.
+
 ## [0.3.0] - 2026-05-17
 
 이 릴리스는 외부 코드 리뷰(`deep-research-report_for_lucky_orchestra-plugin.md`)에서 지적된 critical 항목들을 코드로 반영. 동작 호환성은 유지하면서 결정론·검증·경로 안전성 강화.
