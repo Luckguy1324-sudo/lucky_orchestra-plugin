@@ -50,9 +50,10 @@ fi
 
 echo "[2/4] pip OK"
 
-# 3. Install playwright
-echo "[3/4] Installing playwright (pip --user)..."
-"$PY" -m pip install --user --upgrade playwright
+# 3. Install playwright + PyYAML (PyYAML is optional but makes score_check.py
+#    more robust against unusual review YAML shapes)
+echo "[3/4] Installing playwright + PyYAML (pip --user)..."
+"$PY" -m pip install --user --upgrade playwright PyYAML
 
 # 4. Install Chromium
 echo "[4/4] Installing Chromium for Playwright (~200MB, this may take a minute)..."

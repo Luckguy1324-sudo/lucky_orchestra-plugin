@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.3.0] - 2026-05-17
+
+이 릴리스는 외부 코드 리뷰(`deep-research-report_for_lucky_orchestra-plugin.md`)에서 지적된 critical 항목들을 코드로 반영. 동작 호환성은 유지하면서 결정론·검증·경로 안전성 강화.
+
+### Fixed
+- **`/orchestra` allowed-tools에 `WebFetch` 누락** — SKILL.md/brief-interview.md는 URL 참조 처리에 WebFetch를 사용한다고 명시했지만 권한 목록에 없었음. URL 자료 첨부가 자동화 경로에서 실패하던 버그 수정.
+- **EXTRACTING phase 부분 응답 → exit 0 처리 버그** — 타임아웃 시 부분 텍스트가 있으면 성공으로 처리해 불완전 리뷰가 정상 산출물로 흘러갔음. 이제 exit 6 + frontmatter에 `partial: true` 기록 + `.meta.json` 사이드카 생성.
+- **README 경로의 `0.2.0` 하드코딩** — 버전 글로브(`/orchestra/*/scripts/setup.sh`)로 교체해 업데이트 후에도 동작.
+- **SKILL.md의 `${HOME}/.claude/...` 하드코딩** — `${CLAUDE_PLUGIN_ROOT}` 사용으로 통일 (Anthropic 공식 권장).
+- **`yq` 외부 의존성** — `frontmatter_get.py` (stdlib only) 로 교체.
+
+### Added
+- **`selectors.json`** (single source of truth) — ChatGPT UI 셀렉터 + 모드별 폴링 예산을 한 파일에 통합. `reviewer-bridge-helper.py`가 자동 로드, 누락 시 코드 내 fallback. UI 변경 시 이 JSON만 패치하면 됨.
+- **`score_check.py`** — 강화된 review validator:
+  - PASS but score < pass_threshold → REVISE 자동 escalate
+  - PASS but must_fix 비어있지 않음 → REVISE 자동 escalate
+  - REVISE + round >= max_rounds → PASS_WITH_WARNINGS
+  - frontmatter/YAML의 `partial: true` → PARTIAL verdict
+  - inline list `[]`, `["x"]` 등 일반 YAML 형식 지원
+- **`plugin.json` 메타데이터 보강**:
+  - `homepage`, `repository` 필드
+  - `userConfig`: execution_mode, browser_profile_dir, headless, pass_threshold, optional API keys (sensitive)
+- **`frontmatter_get.py`** — 외부 `yq` 의존성을 stdlib 만으로 교체
+- **`.meta.json` 사이드카** — reviewer-bridge-helper가 응답마다 `{partial, exit_code, char_count, elapsed_seconds}` 메타데이터 별도 저장
+- **`reviewer-bridge.sh` exit 6 인식** — partial 응답 처리, output frontmatter에 `partial: true` 자동 기록
+- **setup.sh가 PyYAML도 설치** — score_check.py의 robust 파싱 지원
+
+### Changed
+- `chatgpt-selectors.md` → selectors.json을 참조하는 안내 문서로 단순화 (single source of truth 확립)
+- `score-check.sh` → Python validator(`score_check.py`) 위임. Python 부재 시 v0.2.x 동작으로 fallback
+
+### Migration
+v0.2.x → v0.3.0: `/plugin update orchestra` 후 새 Claude Code 세션부터 적용. 추가 작업 불필요. PyYAML이 더 robust한 파싱을 제공하므로 setup.sh 재실행 권장(선택).
+
+### Known limitations / 미반영 항목 (v0.4+ 후속)
+검토 보고서의 큰 그림(`thin skill + thick orchestrator`) 중 다음은 별도 마일스톤으로 분리:
+- `bin/orchestra-run` 결정론적 런타임 (state.json + events.jsonl)
+- `agents/` named subagents (research-worker, synthesizer)
+- `hooks/` PreToolUse/SubagentStart 정책 가드
+- `tests/` + CI (`claude plugin validate`, pytest fixture)
+- API/SDK fallback 모드 (OpenAI Responses Deep Research + Structured Outputs)
+- Browser profile을 `${CLAUDE_PLUGIN_DATA}/browser/chatgpt`로 이전 (현재는 `~/.orchestra/chrome-profile/` 유지 — 기존 로그인 세션 보존)
+- `pip --user` → 플러그인 데이터 디렉토리 내부 venv
+
 ## [0.2.1] - 2026-05-15
 
 ### Changed

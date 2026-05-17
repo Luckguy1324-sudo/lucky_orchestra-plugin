@@ -136,10 +136,26 @@ if [[ -f "$HELPER" ]] && [[ "$PLAYWRIGHT_OK" -eq 1 ]]; then
   EXIT_CODE=$?
   set -e
 
-  if [[ "$EXIT_CODE" -ne 0 ]]; then
-    echo "reviewer-bridge-helper exited with code $EXIT_CODE" >&2
-    exit "$EXIT_CODE"
-  fi
+  # Exit code semantics (helper):
+  #   0  success (full response)
+  #   2  auth required
+  #   3  timeout (no text)
+  #   4  extraction/error
+  #   5  bad args / missing deps
+  #   6  partial (timeout but text captured — caller treats as REVISE/retry)
+  case "$EXIT_CODE" in
+    0)
+      PARTIAL_FLAG="false"
+      ;;
+    6)
+      echo "WARN: partial response (helper exit 6). Output saved but will be marked partial." >&2
+      PARTIAL_FLAG="true"
+      ;;
+    *)
+      echo "reviewer-bridge-helper exited with code $EXIT_CODE" >&2
+      exit "$EXIT_CODE"
+      ;;
+  esac
 else
   # MANUAL fallback
   echo "================================================================" >&2
@@ -161,6 +177,7 @@ else
   echo "" >&2
   echo "준비되면 Enter를 누르세요..." >&2
   read -r _ </dev/tty || true
+  PARTIAL_FLAG="${PARTIAL_FLAG:-false}"
 fi
 
 if [[ ! -f "${OUTPUT_FILE}.raw" ]]; then
@@ -179,6 +196,7 @@ CHAR_COUNT=$(wc -c < "${OUTPUT_FILE}.raw" | tr -d ' ')
   echo "started_at: $START_TS"
   echo "completed_at: $END_TS"
   echo "char_count: $CHAR_COUNT"
+  echo "partial: ${PARTIAL_FLAG:-false}"
   echo "---"
   echo ""
   cat "${OUTPUT_FILE}.raw"

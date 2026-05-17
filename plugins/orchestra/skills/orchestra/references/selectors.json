@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "description": "ChatGPT web UI selectors and per-mode polling budgets. Single source of truth — both reviewer-bridge-helper.py and chatgpt-selectors.md read from this.",
+  "common": {
+    "prompt": [
+      "textarea#prompt-textarea",
+      "div[contenteditable=\"true\"][data-id=\"root\"]",
+      "div[contenteditable=\"true\"]",
+      "textarea"
+    ],
+    "send": [
+      "button[data-testid=\"send-button\"]",
+      "button[aria-label*=\"Send\"]",
+      "button[type=\"submit\"]"
+    ],
+    "stop": [
+      "button[data-testid=\"stop-button\"]",
+      "button[aria-label*=\"Stop\"]",
+      "button[aria-label*=\"streaming\"]"
+    ],
+    "assistant_message": "[data-message-author-role=\"assistant\"]",
+    "signin_indicators": [
+      "text=/Log in/",
+      "text=/Sign in/",
+      "text=/로그인/"
+    ],
+    "error_indicators": [
+      "text=/Something went wrong/i",
+      "text=/Network error/i",
+      "text=/Rate limit/i",
+      "text=/Too many requests/i",
+      "text=/Please try again later/i",
+      "text=/오류가 발생/i"
+    ]
+  },
+  "modes": {
+    "deep-research": {
+      "label": "Pro Deep Research",
+      "url": "https://chatgpt.com/?model=deep-research",
+      "poll_interval": 30,
+      "start_timeout": 180,
+      "extract_timeout": 600,
+      "completion_indicators": [
+        "text=/Research complete/i",
+        "text=/Read sources/i"
+      ]
+    },
+    "pro-reasoning": {
+      "label": "Pro Reasoning (Extended)",
+      "url": "https://chatgpt.com/?model=gpt-5-pro",
+      "poll_interval": 15,
+      "start_timeout": 60,
+      "extract_timeout": 120
+    },
+    "thinking": {
+      "label": "Thinking",
+      "url": "https://chatgpt.com/?model=gpt-5-thinking",
+      "poll_interval": 10,
+      "start_timeout": 30,
+      "extract_timeout": 60
+    },
+    "standard": {
+      "label": "Standard",
+      "url": "https://chatgpt.com/?model=gpt-5",
+      "poll_interval": 5,
+      "start_timeout": 15,
+      "extract_timeout": 30
+    }
+  }
+}

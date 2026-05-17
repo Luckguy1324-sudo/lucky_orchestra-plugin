@@ -1,11 +1,55 @@
 {
   "name": "orchestra",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.7이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출. /orchestra 명령으로 6단계 워크플로(Brief → Plan Research → Research × N → Synthesize → Review → Decide) 실행.",
   "author": {
     "name": "jungwooyoon"
   },
   "license": "MIT",
+  "homepage": "https://github.com/Luckguy1324-sudo/lucky_orchestra-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Luckguy1324-sudo/lucky_orchestra-plugin"
+  },
+  "userConfig": {
+    "execution_mode": {
+      "type": "string",
+      "title": "Execution mode",
+      "description": "browser (default, uses ChatGPT subscription via Playwright) | manual (paste prompts yourself) — api/hybrid modes planned for v0.4+",
+      "default": "browser"
+    },
+    "browser_profile_dir": {
+      "type": "directory",
+      "title": "Browser profile directory",
+      "description": "Persistent Playwright profile directory for ChatGPT login (default: ~/.orchestra/chrome-profile/)"
+    },
+    "headless": {
+      "type": "boolean",
+      "title": "Headless browser",
+      "description": "Run Playwright without visible browser UI. Disable to handle 2FA/CAPTCHA manually.",
+      "default": false
+    },
+    "pass_threshold": {
+      "type": "number",
+      "title": "Reviewer pass threshold",
+      "description": "Score below this triggers REVISE even if reviewer says PASS",
+      "default": 8.0
+    },
+    "openai_api_key": {
+      "type": "string",
+      "title": "Optional OpenAI API key",
+      "description": "Reserved for future API/hybrid execution mode (v0.4+)",
+      "sensitive": true,
+      "required": false
+    },
+    "anthropic_api_key": {
+      "type": "string",
+      "title": "Optional Anthropic API key",
+      "description": "Reserved for future SDK reliability mode (v0.4+)",
+      "sensitive": true,
+      "required": false
+    }
+  },
   "keywords": [
     "multi-agent",
     "orchestration",

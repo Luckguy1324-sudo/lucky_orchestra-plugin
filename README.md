@@ -81,10 +81,16 @@ Claude Code 세션에서 두 줄:
 v0.2.0부터 ChatGPT 자동화가 포함됐습니다. plugin 설치 후 한 번 실행:
 
 ```bash
-bash ~/.claude/plugins/cache/lucky-orchestra/orchestra/0.2.0/skills/orchestra/scripts/setup.sh
+# 버전 글로브로 자동 감지 (권장)
+bash ~/.claude/plugins/cache/lucky-orchestra/orchestra/*/skills/orchestra/scripts/setup.sh
 ```
 
-(경로의 `0.2.0`은 실제 설치된 버전에 맞춰 변경. `/plugin list`로 확인)
+또는 특정 버전 명시:
+```bash
+bash ~/.claude/plugins/cache/lucky-orchestra/orchestra/0.3.0/skills/orchestra/scripts/setup.sh
+```
+
+(설치된 버전은 `/plugin list`로 확인)
 
 설치되는 것:
 - Playwright (Python 패키지, `pip --user`로 설치)

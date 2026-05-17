@@ -11,6 +11,7 @@ allowed-tools:
   - Grep
   - AskUserQuestion
   - Task
+  - WebFetch
 ---
 
 # /orchestra Command
