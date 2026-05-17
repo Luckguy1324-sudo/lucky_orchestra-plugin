@@ -81,7 +81,44 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/orchestra-init.sh" "<slug>"
      "$RUN_DIR/_tmp/plan-prompt.md" \
      "$RUN_DIR/02-research-plan.md"
    ```
-3. 응답에서 YAML 블록 추출 → 토픽 리스트 확인. 토픽이 0개면 사용자에게 알리고 RESTART 옵션 제시.
+3. 응답에서 JSON 블록 추출 → `agenda`, `clarification_questions` 파싱. 토픽이 0개면 사용자에게 알리고 RESTART 옵션 제시.
+
+### 2.5. Clarification Gate (Pre-Research)
+
+**목적**: ChatGPT planner가 식별한 진짜 필요한 질문만 사용자에게 묻고, 답변을 Stage 3에 주입. 명확한 주제의 90%+ 경우 이 단계는 자동 skip된다.
+
+**흐름**:
+
+1. `02-research-plan.md`의 JSON에서 `clarification_questions` 배열 추출
+2. 배열이 비어있으면 → **즉시 Stage 3로 진행** (이게 디폴트, 가장 흔한 경로)
+3. 비어있지 않으면 (1~3개):
+   - 각 질문을 AskUserQuestion으로 사용자에게 표시 (`question`, `why_needed`, `impact_if_skipped` 모두 보여줌)
+   - 각 질문에는 "Skip — use AI's best guess" 옵션을 항상 포함
+4. 사용자 답변 수집:
+   - 답변한 질문 → 그대로 기록
+   - skip한 질문 → `(Skipped — proceeding with assumption: <impact_if_skipped 텍스트>)` 기록
+5. `01-brief.md` 끝에 `## Clarifications` 섹션 append:
+
+```markdown
+## Clarifications
+
+### Stage 2.5 (Pre-Research, 라운드 {round_no})
+
+- **q1**: <question>
+  - **Why needed**: <why_needed>
+  - **Answer**: <user answer | "Skipped">
+  - (skip 시) **Assumption applied**: <impact_if_skipped>
+
+- **q2**: ...
+```
+
+6. `meta.json`에 `clarifications_count` 카운터 increment (디버깅용)
+7. Stage 3로 진행. Performer 프롬프트의 `<clarifications>` 섹션에 위 정보 주입.
+
+**안전장치**:
+- 같은 라운드에서 Stage 2.5는 한 번만 실행. 같은 라운드 재진입 시 (REVISE 등) 이미 답변된 질문은 다시 묻지 않음.
+- 라운드 N≥2 진입 시 Reviewer가 새로운 clarification을 요구해도 Stage 2.5는 라운드 1 결과를 그대로 들고 진행 (재질문 금지). Reviewer는 must_fix로 표현해야 함.
+- `clarifications_count > 6` (한 run 총량) 시 사용자에게 경고: "AI가 자료를 과도하게 요구하고 있습니다. 작업 종료 후 brief를 보강하는 것이 효율적일 수 있습니다."
 
 ### 3. Research (Performer ×N) — `research-worker` named subagent
 
@@ -136,7 +173,26 @@ Now research the topic. Return a markdown report as your final message.
 
 research-worker 서브에이전트는 자기 토픽 정보만 본다 (다른 토픽 차단됨).
 
-산출물: Conductor가 subagent의 최종 메시지(텍스트)를 받아 `$RUN_DIR/03-research/<topic_id>.md`로 저장.
+**Stage 2.5 clarifications 주입**: `01-brief.md`의 `## Clarifications` 섹션 내용을 Performer 프롬프트의 `<clarifications>` 섹션으로 전달. 답변과 skip된 항목의 assumption 모두 포함.
+
+**Performer-level escalation 처리** (research-worker 응답이 `## Cannot proceed`로 시작하는 경우):
+
+1. Conductor가 subagent 응답에서 `escalation:` YAML 블록 파싱
+2. 추출되는 필드: `reason`, `clarification_requests[]` (최대 2개), `suggested_default`
+3. AskUserQuestion으로 각 질문 표시 + "Skip — use suggested_default" 옵션 추가
+4. 답변 수집 후 `01-brief.md`에 추가 섹션 append:
+
+```markdown
+### Stage 3 — Topic {topic_id} escalation (라운드 {round_no})
+
+- **q1**: <question>
+  - **Answer**: <user answer | "Skipped — using default: <suggested_default>">
+```
+
+5. 같은 Performer를 재dispatch — `<clarifications>` 섹션에 새 답변 포함. 다른 Performer는 영향 없음.
+6. 같은 토픽에서 escalation은 라운드당 1회만 허용. 두 번째 escalation 시 사용자에게 알리고 `suggested_default`로 강제 진행.
+
+**산출물**: Conductor가 subagent의 최종 메시지(텍스트)를 받아 `$RUN_DIR/03-research/<topic_id>.md`로 저장.
 
 ### 4. Synthesize (Conductor)
 

@@ -147,6 +147,34 @@ references:
 - **r2** `https://example.com/article` — 튜브형 반응기 운전 조건 사례
 
 (자료 본문은 `_refs/r<N>.md`에 저장됨)
+
+## Clarifications 섹션 (v0.5.0+, 필요 시 자동 추가)
+
+Stage 2.5 Clarification Gate 또는 Stage 3 Performer escalation에서 사용자 입력을 받았을 때 `01-brief.md` 끝에 다음 형식으로 append된다. 명확한 주제로 시작한 경우 이 섹션은 생성되지 않는다.
+
+```markdown
+## Clarifications
+
+### Stage 2.5 (Pre-Research, 라운드 1)
+
+- **q1**: 측정 단위가 톤/일인지 톤/시간인지?
+  - **Why needed**: 모델 시뮬레이션 시간 스케일 결정
+  - **Answer**: 톤/시간
+  - (skip 시) **Assumption applied**: <impact_if_skipped 텍스트>
+
+- **q2**: ...
+
+### Stage 3 — Topic t1 escalation (라운드 1)
+
+- **q1**: 비교 대상 공정은 LDPE에 한정인가, HDPE도 포함인가?
+  - **Why needed**: 메커니즘 비교 범위 결정
+  - **Answer**: LDPE만
+```
+
+이 섹션의 답변은:
+- Stage 3 Performer 프롬프트의 `<clarifications>` 섹션으로 그대로 주입됨
+- Stage 4 Synthesize 단계에서 Conductor도 참고함
+- Stage 5 Reviewer 프롬프트의 `<objective>` 보조 컨텍스트로 함께 전달됨
 ```
 
 frontmatter의 `stage2_model`/`stage5_model`은 Stage 1.5에서 채운다.

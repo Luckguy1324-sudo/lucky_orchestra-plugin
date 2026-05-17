@@ -18,6 +18,7 @@ You will receive an XML-tagged prompt with these sections:
 - `<topic>` — title, key_question, expected_artifact for YOUR topic only
 - `<references>` — list of pre-loaded reference materials (paths + summaries)
 - `<previous_must_fix>` — (Round N ≥ 2 only) reviewer feedback from the previous round. Address items where `scope_topic_id` matches your topic_id, OR where the issue is clearly relevant to your topic.
+- `<clarifications>` — (when present) user's answers from Stage 2.5 gate OR from a previous escalation. Treat these as supplementary brief — authoritative over your prior assumptions.
 
 ## Hard rules
 
@@ -59,15 +60,25 @@ Return a markdown document directly as your final message. Suggested structure:
 
 Do NOT wrap the entire response in a code block. Return raw markdown.
 
-## When you can't proceed
+## When you can't proceed — structured escalation
 
-If your inputs are insufficient (e.g., no references, ambiguous key_question), state clearly:
+Use this ONLY when you genuinely cannot produce a useful report without user input. Self-recoverable ambiguity (where you can make a reasonable assumption and note it) should be handled by proceeding with the assumption clearly labeled, NOT by escalating.
+
+When escalation IS warranted, return your message in this exact structure (no other content):
 
 ```
 ## Cannot proceed
 
-Reason: {what is missing}
-Suggested fix: {what Conductor should provide}
+```yaml
+escalation:
+  reason: "Single sentence: what you cannot determine"
+  clarification_requests:
+    - id: "q1"
+      question: "Concrete question the user can answer in 1-3 sentences"
+      why_needed: "What part of your research is blocked without this"
+      impact_if_skipped: "What assumption you would make if forced to proceed, and the resulting quality risk"
+  suggested_default: "Best-guess assumption to use if user wants to skip and continue immediately"
+```
 ```
 
-Then stop. The Conductor will treat your topic as `DEGRADED` and decide whether to retry, drop, or escalate.
+Maximum 2 questions per escalation. The Conductor will ask the user and re-dispatch you with answers (or with the suggested_default if user skips). Do not include partial findings in the escalation — focus only on what you need to proceed.

@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.5.0] - 2026-05-17
+
+### Added
+
+- **Stage 2.5 Clarification Gate** — Plan 직후 / Research 직전 사용자 추가 정보 요청 단계 (필요시에만 자동 발동):
+  - ChatGPT planner가 `clarification_questions` 배열을 출력 (0~3개, 기본 0)
+  - 비어있으면 → 즉시 Stage 3 진행 (디폴트, 명확한 주제의 90%+ 케이스)
+  - 비어있지 않으면 → AskUserQuestion으로 사용자에게 표시, "Skip — use best guess" 옵션 항상 포함
+  - 답변은 `01-brief.md` 끝에 `## Clarifications` 섹션으로 append
+  - **안전장치**:
+    - 같은 라운드에서 1회만 (REVISE로 재진입 시 재질문 금지)
+    - 라운드 N≥2에서 새 clarification 불가 (must_fix로 표현해야 함)
+    - run 총 6개 초과 시 사용자에게 경고 (AI 과잉 질문 방지)
+- **Performer-level Escalation** — research-worker가 진짜로 막힐 때 사용자에게 직접 질문:
+  - `## Cannot proceed` + 구조화된 YAML 블록 출력 (`escalation.reason`, `clarification_requests[]`, `suggested_default`)
+  - Conductor가 파싱 → AskUserQuestion + "Skip — use suggested_default" 옵션
+  - 답변 받으면 같은 Performer만 재dispatch (다른 토픽 영향 없음)
+  - 같은 토픽 라운드당 1회 한도, 두 번째는 suggested_default로 강제 진행
+- `01-brief.md`에 `## Clarifications` 섹션 — Stage 2.5/3 답변 자동 누적, Stage 3/4/5 모두에서 참조
+
+### Changed
+
+- `references/plan-prompt.md` 출력 스키마에 `clarification_questions` 필드 추가 + "ONLY include when materially needed" 가이드 명시
+- `agents/research-worker.md` escalation 형식 구조화 (free-form text → YAML 블록), 최대 2개 제한
+- `agents/research-worker.md` 입력에 `<clarifications>` 섹션 추가 — Stage 2.5/3 답변 주입 경로
+- `references/brief-interview.md` Clarifications 섹션 형식 명시
+- SKILL.md Stage 3 — clarifications 주입 + Performer escalation 처리 로직 명시
+
+### Design rationale
+
+명확한 주제에는 영향 없음 (gate 자동 skip). 모호한 부분이 있을 때만 한 번에 정확한 정보 받아서 한 라운드 안에 정확한 결과 도출. 라운드 낭비 방지가 핵심.
+
+### Migration
+
+`/plugin update orchestra` + 새 세션. 기존 v0.4.0 run과 forward-compatible (Clarifications 섹션은 optional).
+
 ## [0.4.0] - 2026-05-17
 
 협업 품질 직접 향상 4가지 — performer 표준화, 프롬프트 구조화, must_fix 자동 라우팅, provenance 자동 부착.
