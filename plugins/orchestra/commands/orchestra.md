@@ -16,7 +16,7 @@ allowed-tools:
 
 # /orchestra Command
 
-Claude Code Opus 4.7이 지휘자(Conductor)가 되어 본인(Performer ×N)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 만들어내는 6단계 워크플로.
+Claude Code Opus 4.8이 지휘자(Conductor)가 되어 본인(Performer ×N)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 만들어내는 6단계 워크플로.
 
 ## Workflow Summary
 

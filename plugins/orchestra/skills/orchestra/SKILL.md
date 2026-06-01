@@ -1,11 +1,11 @@
 ---
 name: orchestra
-description: Multi-AI 협업 오케스트레이션 스킬. Claude Code Opus 4.7이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출한다. "/orchestra", "오케스트라", "협업해줘", "여러 AI로 만들어줘" 같은 요청에 사용된다.
+description: Multi-AI 협업 오케스트레이션 스킬. Claude Code Opus 4.8이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출한다. "/orchestra", "오케스트라", "협업해줘", "여러 AI로 만들어줘" 같은 요청에 사용된다.
 ---
 
 # Orchestra — Multi-AI 협업 오케스트레이션
 
-> Conductor (Claude Opus 4.7) — Performer ×N (Claude Opus 4.7) — Reviewer (ChatGPT Pro Deep Research)
+> Conductor (Claude Opus 4.8) — Performer ×N (Claude Opus 4.8) — Reviewer (ChatGPT Pro Deep Research)
 
 ## 핵심 원칙
 

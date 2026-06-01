@@ -1,6 +1,6 @@
 # Orchestra
 
-> Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.7이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출
+> Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.8이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출
 
 ## 핵심 아이디어
 
@@ -24,9 +24,9 @@
 
 | Role | Model | 책임 |
 |------|-------|------|
-| Conductor (지휘자) | Claude Code Opus 4.7 | 의도 파악, 단계 라우팅, 통합, 품질 평가 |
+| Conductor (지휘자) | Claude Code Opus 4.8 | 의도 파악, 단계 라우팅, 통합, 품질 평가 |
 | Researcher Planner | ChatGPT (모드 선택) | "어떤 리서치가 필요한가" 어젠다 설계 |
-| Performer ×N (연주자) | Claude Code Opus 4.7 (Task 서브에이전트) | Plan에 명시된 각 리서치 토픽 병렬 수행 |
+| Performer ×N (연주자) | Claude Code Opus 4.8 (Task 서브에이전트) | Plan에 명시된 각 리서치 토픽 병렬 수행 |
 | Reviewer (검토자) | ChatGPT (모드 선택) | 통합본 심층 검토, 점수 + 구체 피드백 |
 
 ## ChatGPT 모드 카탈로그

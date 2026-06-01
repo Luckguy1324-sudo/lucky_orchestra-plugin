@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.1] - 2026-06-01
+
+### Changed
+- **Conductor/Performer 기준 모델을 Claude Opus 4.7 → Opus 4.8로 업데이트** — 최신 모델 패밀리(Claude 4.8) 반영
+- 문서 전반의 모델 표기 일괄 갱신: `README.md`, `docs/design.md`, `plugins/orchestra/commands/orchestra.md`, `plugins/orchestra/skills/orchestra/SKILL.md`, `plugins/orchestra/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`
+
+### Migration
+v0.5.0 → v0.5.1: 문서 표기만 변경, 코드/스크립트 변경 없음. `/plugin update orchestra` 후 새 세션부터 적용.
+
 ## [0.5.0] - 2026-05-17
 
 ### Added
