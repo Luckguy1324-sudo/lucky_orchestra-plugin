@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.2] - 2026-06-01
+
+### Fixed
+- **plugin.json `repository` 필드 형식 수정** — Claude Code plugin spec은 `repository`를 string으로 요구하는데, v0.5.1까지는 npm 스타일 object(`{type, url}`)였음. 이로 인해 `/plugin install` 시 `"Validation errors: repository: Invalid input: expected string, received object"` 에러 발생. 단일 URL 문자열로 변경하여 해결.
+
+### Migration
+v0.5.1 → v0.5.2: 메타데이터만 수정, 기능 변경 없음. `/plugin marketplace update lucky-orchestra` 후 `/plugin install orchestra@lucky-orchestra` 재시도.
+
 ## [0.5.1] - 2026-06-01
 
 ### Changed
