@@ -297,3 +297,25 @@ gstack browser open --profile orchestra
 - M5: Stage 3 (Research) 병렬 dispatch
 - M6: Stage 4–6 (Synthesize/Review/Decide) + 루프
 - M7: 논문 공정모델 예제로 end-to-end 검증
+
+## 12. 강화된 교차검증 설계 (Hardened Cross-Validation ①–⑧)
+
+v0.6.0에서 Review/Decide 단계는 8개 메커니즘으로 하드닝되어, 단일 Reviewer 응답에 의존할 때
+생기는 편향·환각·groupthink·점수 인플레이션을 구조적으로 차단한다. 상세 정의는
+`skills/orchestra/references/verification-mechanisms.md`.
+
+| # | 메커니즘 | 적용 단계 | 산출물/스크립트 |
+|---|---------|----------|----------------|
+| ① | reviewer-bias guard / blind 스코어링 | Stage 5a | 새 ChatGPT 창, `_review/05a-blind-vN.md` |
+| ② | severity 태깅 (CRITICAL→MINOR 정렬) | Stage 5 통합 | `05-review-vN.md`의 `must_fix[].severity` |
+| ③ | anti-groupthink 페르소나 | Stage 5b | `references/persona-sets.md`, `_review/05b-*` |
+| ④ | claim→근거 웹 검증 | Stage 5c | WebSearch/WebFetch, `_review/05c-claim-audit-vN.md` |
+| ⑤ | forensic raw trace 보존 | Stage 5 전체 | `_review/` 하위 불변 원문 |
+| ⑥ | acquit-gate 분리 | Stage 6 | `score-check.sh` / `score_gate.py` |
+| ⑦ | kill-argument 적대 검토 | Stage 5d | `_review/05d-kill-vN.md` |
+| ⑧ | deterministic pre-gate | Stage 4.5 | `scripts/pre_gate.sh` |
+
+**설계 원칙**:
+- 채점(scoring)과 finding-해결(acquittal)을 분리한다 — 미해결 CRITICAL이 있으면 점수와 무관하게 REVISE(⑥).
+- 모든 검증은 자동화에 비의존적이다 — MANUAL 모드에서도 동일 절차로 수행(`references/manual-vs-auto.md`).
+- 모든 raw 응답은 삭제·요약 없이 보존해 사후 추적(forensic) 가능(⑤).

@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.6.0] - 2026-06-15
+
+v0.5.2 백본에 v0.4.0 패키지의 **강화된 교차검증(hardened cross-validation)** 8개 메커니즘을 통합한 릴리스. 기존 6단계 워크플로(Brief → Plan → Research ×N → Synthesize → Review → Decide)와 Stage 2.5 Clarification Gate, Performer escalation은 그대로 유지된다.
+
+### Added
+- **8개 하드닝 검증 메커니즘(①–⑧)** — `references/verification-mechanisms.md`:
+  - ① reviewer-bias guard / blind 스코어링 (매 라운드 새 ChatGPT 창)
+  - ② severity 태깅 + CRITICAL→MAJOR→MINOR 정렬
+  - ③ anti-groupthink 페르소나 패스 (`references/persona-sets.md`)
+  - ④ claim→근거 웹 검증 (WebSearch/WebFetch, 표준 조항 단정 금지)
+  - ⑤ forensic raw trace 보존 (`_review/` 하위 원문 불변)
+  - ⑥ acquit-gate 분리 (미해결 CRITICAL이면 점수 무관 REVISE)
+  - ⑦ kill-argument 적대 검토
+  - ⑧ deterministic pre-gate (`scripts/pre_gate.sh`)
+- **Stage 4.5 Pre-Gate** — 리뷰 전 결정론적 사전 검증, FAIL 시 수정·재실행
+- **Stage 5 4-pass 리뷰** — blind 스코어링 + persona + claim 감사 + kill-argument 통합
+- 신규 레퍼런스: `verification-mechanisms.md`, `persona-sets.md`, `review-prompts.md`, `manual-vs-auto.md`
+- 신규 스크립트: `scripts/pre_gate.sh`, `scripts/score_gate.py` (실행 권한 포함)
+- 신규 문서: `docs/MIGRATION.md`
+
+### Changed
+- `SKILL.md` — Pre-Gate 단계 신설, Review를 4-pass로 확장, acquit-gate 명시, 안티패턴 보강
+- `commands/orchestra.md` — 워크플로 요약에 검증 메커니즘 반영, `allowed-tools`에 `WebSearch`/`Skill` 추가
+- `setup.sh` — MANUAL 모드 폴백 + graceful degradation (실패해도 수동 모드로 동작), 프로필 디렉터리 자동 생성
+- `plugin.json` / `marketplace.json` — 버전 0.6.0, 교차검증 키워드/설명 반영 (v0.5.2의 `repository` 문자열 수정 유지)
+- 검증 메커니즘은 자동화 여부와 무관하게 MANUAL 모드에서도 동일 동작
+
+### Migration
+v0.5.2 → v0.6.0: 자세한 내용은 `docs/MIGRATION.md`. `/plugin marketplace update lucky-orchestra` 후 `/plugin install orchestra@lucky-orchestra`. 자동화를 쓰려면 `bash scripts/setup.sh`(선택). 기존 run 디렉터리 구조와 호환.
+
 ## [0.5.2] - 2026-06-01
 
 ### Fixed

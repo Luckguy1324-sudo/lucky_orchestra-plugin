@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "orchestra",
-      "description": "Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.8 (Conductor + Performer)와 ChatGPT Pro Deep Research (Planner + Reviewer)를 6단계 워크플로로 협업시켜 단일 산출물을 도출",
+      "description": "Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.8 (Conductor + Performer)와 ChatGPT Pro Deep Research (Planner + Reviewer)를 6단계 워크플로로 협업시켜 단일 산출물을 도출하고, 강화된 교차검증(8개 검증 메커니즘)으로 결과를 검증",
       "source": "./plugins/orchestra",
       "category": "productivity",
       "tags": [
@@ -19,6 +19,8 @@
         "claude-code",
         "research",
         "review-loop",
+        "cross-validation",
+        "adversarial-review",
         "korean"
       ]
     }
