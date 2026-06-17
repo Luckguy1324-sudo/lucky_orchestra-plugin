@@ -1,27 +1,33 @@
 {
   "name": "lucky-orchestra",
-  "description": "Lucky orchestra marketplace — multi-AI orchestration plugin",
   "owner": {
     "name": "Luckguy1324-sudo",
     "url": "https://github.com/Luckguy1324-sudo"
   },
+  "metadata": {
+    "description": "Multi-AI orchestration with hardened cross-validation, premise-challenging scoping, and context-durable execution. Claude conducts, ChatGPT reviews — across 8 verification mechanisms, a CHALLENGE gate, confidence-gap-weighted research, isolated-subagent execution, and decision-log durability.",
+    "version": "0.7.0"
+  },
   "plugins": [
     {
       "name": "orchestra",
-      "description": "Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.8 (Conductor + Performer)와 ChatGPT Pro Deep Research (Planner + Reviewer)를 6단계 워크플로로 협업시켜 단일 산출물을 도출하고, 강화된 교차검증(8개 검증 메커니즘)으로 결과를 검증",
       "source": "./plugins/orchestra",
-      "category": "productivity",
-      "tags": [
-        "multi-agent",
+      "description": "Multi-AI collaboration orchestration v0.7.0 — Claude Code conductor + ChatGPT reviewer with hardened verification, scoping rigor, and context durability.",
+      "version": "0.7.0",
+      "author": {
+        "name": "Luckguy1324-sudo"
+      },
+      "license": "MIT",
+      "keywords": [
         "orchestration",
-        "chatgpt",
-        "deep-research",
-        "claude-code",
-        "research",
-        "review-loop",
+        "multi-model",
         "cross-validation",
+        "claude",
+        "chatgpt",
         "adversarial-review",
-        "korean"
+        "scoping",
+        "context-management",
+        "research"
       ]
     }
   ]

@@ -1,7 +1,0 @@
-.DS_Store
-*.swp
-*.swo
-.orchestra/
-node_modules/
-__pycache__/
-*.pyc

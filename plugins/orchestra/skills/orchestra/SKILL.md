@@ -1,338 +1,409 @@
 ---
 name: orchestra
-description: Multi-AI 협업 오케스트레이션 스킬. Claude Code Opus 4.8이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출한다. "/orchestra", "오케스트라", "협업해줘", "여러 AI로 만들어줘" 같은 요청에 사용된다.
+description: >
+  Multi-AI collaboration orchestration. Claude Code Opus acts as Conductor,
+  coordinating itself (Performer) and ChatGPT Pro (Reviewer) to produce one
+  high-quality, cross-validated artifact. The Performer never grades its own
+  work — generation is Claude, verification is ChatGPT. Use when the user says
+  "orchestra", "오케스트라", "멀티 AI 협업", "교차검증 작업", or wants a
+  research/design/writing deliverable rigorously scoped and cross-validated
+  across two model families. v0.7.0 adds premise-challenging scoping (CHALLENGE
+  gate, stage-routed forcing questions, confidence-gap-weighted research,
+  anti-sycophancy constraints) and context durability (isolated-subagent
+  execution for Synthesize/Review, decision-log "why" preservation, explicit
+  compaction priority) on top of the 8 hardened verification mechanisms.
+version: 0.7.0
+license: MIT
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Agent, Skill
 ---
 
-# Orchestra — Multi-AI 협업 오케스트레이션
+# Orchestra v0.7.0 — Scoped, Verified, Context-Durable Multi-AI Collaboration
 
-> Conductor (Claude Opus 4.8) — Performer ×N (Claude Opus 4.8) — Reviewer (ChatGPT Pro Deep Research)
+Throw one goal and the Conductor coordinates a workflow with ChatGPT that (1) challenges
+whether you're solving the right problem, (2) researches with effort concentrated where
+the plan is weakest, (3) cross-validates the result across two model families, and (4)
+survives context exhaustion without degrading into a rushed artifact.
 
-## 핵심 원칙
+**Core principle:** the one who does the work does not verify the work. Performer =
+Claude. Reviewer = ChatGPT.
 
-1. **역할 분리**: 본인이 한 일을 본인이 검증하지 않는다. Reviewer는 별도 모델.
-2. **단계 외부화**: 모든 산출물은 파일로 떨어뜨려 다음 단계의 입력으로 사용.
-3. **적응형 루프**: 품질 임계치 통과까지 Review-Revise 반복, 단 max_rounds 안전장치.
-4. **사용자 통제**: Stage 1.5에서 ChatGPT 모드 선택, max_rounds 결정.
-5. **강화된 교차검증**: 리뷰는 8개 메커니즘(①–⑧)으로 하드닝된다 — reviewer-bias guard·blind 스코어링(①), severity 태깅 정렬(②), anti-groupthink 페르소나(③), claim→근거 웹 검증(④), forensic raw trace 보존(⑤), acquit-gate 분리(⑥), kill-argument 적대 검토(⑦), deterministic pre-gate(⑧). 자세한 정의는 `references/verification-mechanisms.md`. 이 메커니즘은 자동화 여부와 무관하게 MANUAL 모드에서도 동일하게 동작한다(`references/manual-vs-auto.md`).
+**Three pillars (each maps to a reference doc):**
+- **Verification** — 8 hardened mechanisms make the review *trustworthy*. → `verification-mechanisms.md`
+- **Scoping** — challenge the premise before producing, weight research by confidence gap. → `scoping-rules.md`, `forcing-questions.md`
+- **Context durability** — isolate heavy stages, preserve the "why". → `context-durability.md`
 
-## 사전 준비 (스킬 진입 시 즉시 수행)
+---
 
-다음 레퍼런스를 Read로 읽는다:
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/brief-interview.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/model-recommendation.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/plan-prompt.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/reviewer-prompt.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/verification-mechanisms.md` (①–⑧ 정의)
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/manual-vs-auto.md` (MANUAL/자동화 모드 차이)
+## The 8 Verification Mechanisms (unchanged from v0.6.0)
 
-Stage 5 Review 직전에 읽는다:
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/persona-sets.md` (anti-groupthink 페르소나 ③)
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/review-prompts.md` (4개 리뷰 서브패스 프롬프트)
+| # | Mechanism | Stage(s) | Why |
+|---|-----------|----------|-----|
+| ① | Reviewer-Bias Guard | 6a | Fresh context per scoring pass — stops score inflation |
+| ② | Severity-Tagged Findings | 6 | CRITICAL > MAJOR > MINOR — fix order unambiguous |
+| ③ | Anti-Groupthink Personas | 6 | One model, narrow non-overlapping lenses — no consensus collapse |
+| ④ | Web-Verified Claims | 6c | Standards/figures/citations checked against the web |
+| ⑤ | Forensic Review Trace | all | Raw reviews preserved, score trajectory logged, regression detected |
+| ⑥ | Acquit-Gate Separation | 7 | Pass/fail is a deterministic rule, not Conductor discretion |
+| ⑦ | Kill-Argument Adversary | 6d | One pass writes the strongest rejection |
+| ⑧ | Deterministic Pre-Gate | 5.5 | Mechanical checks pass BEFORE any expensive review |
 
-브라우저 자동화 첫 호출 직전에 읽는다:
-- `${CLAUDE_PLUGIN_ROOT}/skills/orchestra/references/chatgpt-selectors.md`
+## New in v0.7.0 — Scoping (S) + Context durability (C)
 
-## 워크플로
+| Tag | Addition | Stage | Why |
+|-----|----------|-------|-----|
+| S1 | CHALLENGE gate — pressure-test the premise before any production | 1.5 | Stops "verifying the wrong thing perfectly" |
+| S2 | Stage-routed forcing questions | 1.5 | Right hard question for the work's stage |
+| S3 | Anti-sycophancy constraints (banned phrases) in Brief+Plan | 1, 2 | Scoping decisions become falsifiable, not vague |
+| S4 | Confidence-gap-weighted research | 2, 3 | Costly passes concentrate where the plan is weakest |
+| C1 | Isolated-subagent execution for Synthesize + Review | 4, 6 | Main Conductor context stays flat — no late-stage degradation |
+| C2 | Decision-log ("why") in meta.json | 1.5, all | The reason behind scope survives compaction |
+| C3 | Explicit compaction priority order | all | If the window fills, the right things survive |
 
-### 0. Init
+---
 
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/orchestra-init.sh" "<slug>"
-```
+## Role Separation
 
-- `<cwd>/.orchestra/runs/<run-id>/`를 만들고 run-id를 echo한다 (`YYYYMMDD-HHMMSS-<slug>`).
-- 이후 모든 경로는 `RUN_DIR=$(pwd)/.orchestra/runs/<run-id>`.
-- `meta.json` 초기화: `{"run_id":..., "started_at":..., "round":1, "verdict_history":[]}`.
+| Role | Model | Responsibility |
+|------|-------|----------------|
+| Conductor (지휘자) | Claude Code Opus (main session) | Intent, routing, gate execution, file-only coordination — NOT judging, NOT heavy synthesis |
+| Challenger | Claude (Conductor, scoping mode) | Runs the CHALLENGE gate forcing questions |
+| Researcher Planner | ChatGPT (mode-selected) | Designs the research agenda |
+| Performer ×N (연주자) | Claude Task subagents (isolated) | Executes each research topic in parallel |
+| Synthesizer | Claude Task subagent (isolated) | Integrates research into a draft — C1 |
+| Reviewer (검토자) | ChatGPT (mode-selected) | Deep review under enforced schema, persona passes |
+| Adversary (반론자) | ChatGPT (mode-selected) | Writes the strongest rejection |
 
-### 1. Brief
+**Why the Conductor delegates Synthesize and Review (C1):** so the main session never
+accumulates the full weight of every stage. The Conductor passes file paths and receives
+file paths. Its own context stays roughly constant regardless of how many rounds run —
+this is what prevents the late-stage rushed-artifact failure mode.
 
-`brief-interview.md`에 명시된 5개 질문을 AskUserQuestion으로 순차 실행:
+---
 
-1. 목표 (한 줄 텍스트 → Other로 받기)
-2. 제약 (마감/포맷/길이)
-3. 성공 기준
-4. **참조 자료** (파일/URL/텍스트, 다수 허용)
-5. 최대 라운드 (기본 3, 옵션: 1, 2, 3, 5)
+## ChatGPT Mode Catalog
 
-**Q4 후속 처리 (참조 자료 로딩)**:
-- 파일 경로 → `Read`로 본문 적재
-- 디렉토리 → `ls` 후 각 파일 적재 (50개 초과 시 우선순위 질문)
-- URL → `WebFetch`로 본문 적재
-- 각 자료는 `$RUN_DIR/_refs/r<N>.md`에 저장하고 `01-brief.md` frontmatter의 `references` 리스트에 인덱싱 (id, source, type, size_chars, summary, body_path)
+| ID | Display | Best for | Est. time |
+|----|---------|----------|-----------|
+| `deep-research` | Pro Deep Research | Citations, literature, market/academic research | 5–30 min |
+| `pro-reasoning` | Pro Reasoning | Modeling, proofs, verification | 1–5 min |
+| `thinking` | Thinking | General review | 30 s–2 min |
+| `standard` | Standard | Summarize, format conversion | instant |
 
-답변을 `01-brief.md`에 frontmatter+본문으로 저장.
+At Stage 1.5 the Conductor recommends a mode by goal keywords; the user confirms.
 
-### 1.5. Model
+**Manual connection:** This skill assumes ChatGPT Pro via manual paste (no API). Each
+ChatGPT interaction specifies NEW window (bias-sensitive) or SAME window
+(context-continuing). Honoring that is mechanism ①. See `manual-vs-auto.md`.
 
-`model-recommendation.md`의 휴리스틱을 적용해 Stage 2와 Stage 5의 ChatGPT 모드를 추천한다. 그 다음 AskUserQuestion으로 추천안+이유 표시 → 사용자 확정.
+---
 
-선택 결과를 `01-brief.md` frontmatter의 `stage2_model`, `stage5_model`에 기록.
-
-### 2. Plan Research (ChatGPT)
-
-1. `plan-prompt.md`의 **v0.4.0 XML-tagged + JSON-output 템플릿**을 사용:
-   - `<role>`, `<objective>`, `<success_criterion>`, `<constraints>`, `<references>`, `<rules>`, `<output_format>` 섹션 구조 그대로 사용
-   - References 본문은 `<references>` 섹션 내부에 `[r1] path — summary` 라벨 + 본문 fenced로 인라인
-   - 본문 길이 8KB 초과 시 head 4KB + "...[truncated]..." + tail 1KB
-   - URL/PDF는 추출된 텍스트만 (raw 바이너리 금지)
-   - 출력 형식: 단일 fenced JSON 코드블록 (`agenda`, `notes`, `risk_flags`)
-   ```
-   $RUN_DIR/_tmp/plan-prompt.md
-   ```
-2. reviewer-bridge로 호출:
-   ```bash
-   STAGE2_MODEL=$(python3 "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/frontmatter_get.py" \
-     "$RUN_DIR/01-brief.md" stage2_model)
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/reviewer-bridge.sh" \
-     --model "$STAGE2_MODEL" \
-     "$RUN_DIR/_tmp/plan-prompt.md" \
-     "$RUN_DIR/02-research-plan.md"
-   ```
-3. 응답에서 JSON 블록 추출 → `agenda`, `clarification_questions` 파싱. 토픽이 0개면 사용자에게 알리고 RESTART 옵션 제시.
-
-### 2.5. Clarification Gate (Pre-Research)
-
-**목적**: ChatGPT planner가 식별한 진짜 필요한 질문만 사용자에게 묻고, 답변을 Stage 3에 주입. 명확한 주제의 90%+ 경우 이 단계는 자동 skip된다.
-
-**흐름**:
-
-1. `02-research-plan.md`의 JSON에서 `clarification_questions` 배열 추출
-2. 배열이 비어있으면 → **즉시 Stage 3로 진행** (이게 디폴트, 가장 흔한 경로)
-3. 비어있지 않으면 (1~3개):
-   - 각 질문을 AskUserQuestion으로 사용자에게 표시 (`question`, `why_needed`, `impact_if_skipped` 모두 보여줌)
-   - 각 질문에는 "Skip — use AI's best guess" 옵션을 항상 포함
-4. 사용자 답변 수집:
-   - 답변한 질문 → 그대로 기록
-   - skip한 질문 → `(Skipped — proceeding with assumption: <impact_if_skipped 텍스트>)` 기록
-5. `01-brief.md` 끝에 `## Clarifications` 섹션 append:
-
-```markdown
-## Clarifications
-
-### Stage 2.5 (Pre-Research, 라운드 {round_no})
-
-- **q1**: <question>
-  - **Why needed**: <why_needed>
-  - **Answer**: <user answer | "Skipped">
-  - (skip 시) **Assumption applied**: <impact_if_skipped>
-
-- **q2**: ...
-```
-
-6. `meta.json`에 `clarifications_count` 카운터 increment (디버깅용)
-7. Stage 3로 진행. Performer 프롬프트의 `<clarifications>` 섹션에 위 정보 주입.
-
-**안전장치**:
-- 같은 라운드에서 Stage 2.5는 한 번만 실행. 같은 라운드 재진입 시 (REVISE 등) 이미 답변된 질문은 다시 묻지 않음.
-- 라운드 N≥2 진입 시 Reviewer가 새로운 clarification을 요구해도 Stage 2.5는 라운드 1 결과를 그대로 들고 진행 (재질문 금지). Reviewer는 must_fix로 표현해야 함.
-- `clarifications_count > 6` (한 run 총량) 시 사용자에게 경고: "AI가 자료를 과도하게 요구하고 있습니다. 작업 종료 후 brief를 보강하는 것이 효율적일 수 있습니다."
-
-### 3. Research (Performer ×N) — `research-worker` named subagent
-
-`02-research-plan.md`의 agenda를 순회한다. 의존성 그래프를 파싱 (`depends_on`).
-
-- 의존성 없는 토픽 → Task 도구로 **병렬** dispatch (한 메시지에 여러 Task 호출), `subagent_type: "research-worker"`
-- 의존성 있는 토픽 → 의존성 완료 후 dispatch
-
-**Round N ≥ 2 (must_fix 자동 주입)**:
-- `05-review-v(N-1).md`에서 `must_fix` 배열 추출
-- 각 토픽 i에 대해 해당 토픽 관련 must_fix만 필터링:
-  - `scope_topic_id == topic_id_i` (정확 매칭) — 최우선
-  - `scope_topic_id == null` (synthesis 또는 다중 토픽) — 모든 토픽에 공통 전달
-- 필터링된 must_fix 항목을 해당 Performer 프롬프트의 `<previous_must_fix>` 섹션에 JSON 배열로 주입
-
-각 research-worker dispatch 프롬프트 형식 (XML 섹션):
+## Workflow — 7 Stages + 3 Gates
 
 ```
-<run_context>
-run_id: $RUN_ID
-round_no: $ROUND
-topic_id: <topic.topic_id>
-</run_context>
-
-<objective>
-<paste 01-brief.md objective>
-</objective>
-
-<constraints>
-<paste 01-brief.md constraints>
-</constraints>
-
-<topic>
-title: <topic.title>
-key_question: <topic.key_question>
-expected_artifact: <topic.expected_artifact>
-</topic>
-
-<references>
-[<r.id>] <r.source> — <r.summary>
-  Full text path: $RUN_DIR/_refs/<r.id>.md
-... (다른 refs 동일 형식)
-</references>
-
-<previous_must_fix>
-{Round ≥ 2 only — JSON array of relevant must_fix items}
-{Round 1 → 이 섹션 자체를 생략 또는 빈 배열 "[]"}
-</previous_must_fix>
-
-Now research the topic. Return a markdown report as your final message.
+ 1   Brief ─────────────── interview, capture acceptance_criteria (S3 anti-sycophancy)
+ 1.5 [CHALLENGE GATE S1/S2] ── forcing questions: are we solving the right problem?
+                                  └─ writes decisions[] with WHY (C2)
+ 1.6 Model selection ─── recommend ChatGPT mode per stage, user confirms
+ 2   Plan Research (ChatGPT, NEW window) ── agenda + confidence-gap scores per topic (S4)
+ 3   Research ×N (Performer subagents, isolated, parallel) ── deepen high-gap topics first (S4)
+ 4   Synthesize (Synthesizer SUBAGENT, isolated) ── integrate; inject must_fix on REVISE (C1)
+ 5.5 [PRE-GATE ⑧] ── mechanical checks (code) BEFORE any review
+ 6   Review (ChatGPT, isolated dispatch C1):
+       6a Blind score    (NEW window every round)        ①②
+       6b Persona passes (separate windows)              ③
+       6c Web audit      (Conductor + WebSearch)         ④
+       6d Kill-argument  (NEW window)                    ⑦
+ 7   [DECIDE GATE ⑥] ── score_gate.py: PASS / REVISE / RESTART (deterministic)
+                          └─ regression auto-escalates to RESTART (⑤)
 ```
 
-research-worker 서브에이전트는 자기 토픽 정보만 본다 (다른 토픽 차단됨).
+PASS → `final.md`. REVISE → round N+1 (Stage 4 with must_fix). RESTART → back to Plan
+(or to CHALLENGE if the premise itself failed).
 
-**Stage 2.5 clarifications 주입**: `01-brief.md`의 `## Clarifications` 섹션 내용을 Performer 프롬프트의 `<clarifications>` 섹션으로 전달. 답변과 skip된 항목의 assumption 모두 포함.
+---
 
-**Performer-level escalation 처리** (research-worker 응답이 `## Cannot proceed`로 시작하는 경우):
+### Stage 1 — Brief (Conductor interview)
 
-1. Conductor가 subagent 응답에서 `escalation:` YAML 블록 파싱
-2. 추출되는 필드: `reason`, `clarification_requests[]` (최대 2개), `suggested_default`
-3. AskUserQuestion으로 각 질문 표시 + "Skip — use suggested_default" 옵션 추가
-4. 답변 수집 후 `01-brief.md`에 추가 섹션 append:
+Output: `01-brief.md`
 
-```markdown
-### Stage 3 — Topic {topic_id} escalation (라운드 {round_no})
+Interview (or parse args). Apply **S3 anti-sycophancy** to your own framing — see
+`scoping-rules.md` §banned-phrases. Do not say "that's interesting" or "there are several
+ways"; take a position and state what evidence would change it.
 
-- **q1**: <question>
-  - **Answer**: <user answer | "Skipped — using default: <suggested_default>">
+- Q1: Deliverable? (paper section, design doc, analysis…)
+- Q2: What does "done" look like? → these become `acceptance_criteria[]` (Stage 7 gate)
+- Q3: Venue/standard/audience? → sets reviewer persona + web-verification scope
+- Q4: Reference materials? → paths into `_refs/`
+- Q5: Domain → selects `persona_set` (③) and `forcing_question_route` (S2)
+
+If acceptance criteria are vague, propose concrete checkable ones and confirm.
+
+---
+
+### Stage 1.5 — CHALLENGE GATE (S1, S2) + decision log (C2)
+
+**This is the v0.7.0 scoping core. Do not skip it.** Before any production work, pressure-
+test whether this is the right problem to solve. A perfectly verified answer to the wrong
+question is worthless.
+
+1. **Route forcing questions by stage** (S2). Read `forcing-questions.md`, pick the route
+   for this work's stage (pre-product / has-users / paying / pure-engineering / research-
+   paper). Ask only the routed subset — wrong questions at the wrong stage waste effort.
+2. **Pressure-test, don't interview.** For each routed question, push on vague answers
+   using the pushback patterns in `forcing-questions.md`. Demand specificity.
+3. **Decide scope mode** and commit to it (from `scoping-rules.md` §scope-modes): EXPAND /
+   SELECTIVE / HOLD / REDUCE. Chosen once, never silently shifted.
+4. **Write `decisions[]` to meta.json (C2)** — each as `{what, why, evidence_that_would_change_it}`.
+   This is the "why" that must survive compaction. Example:
+   `{"what":"warm-suction baseline","why":"industry-standard, avoids 45K stream anomaly","evidence_that_would_change_it":"a peer process showing cryogenic suction with lower total kJ/kg"}`
+5. **Gate question:** "If we stop scoping here, what would the Plan stage still have to
+   invent?" If the answer is scope boundaries, success criteria, or the core problem
+   framing — CHALLENGE is not done. Loop.
+
+Output: `01.5-challenge.md` + `decisions[]` in meta.json.
+
+---
+
+### Stage 1.6 — Model selection
+Conductor recommends ChatGPT modes per stage, records in `meta.json.modes`. User confirms.
+
+---
+
+### Stage 2 — Plan Research (ChatGPT, NEW window) + confidence-gap scoring (S4)
+
+Output: `02-research-plan.md`
+
+1. Draft the agenda question; user pastes into a NEW ChatGPT window (usually
+   `deep-research`), pastes response back. Plan enumerates N research topics.
+2. **Score each topic's confidence gap (S4)** — run `scripts/confidence_gap.py` or apply
+   the rubric in `scoping-rules.md` §confidence-gap: `trigger_count + risk_bonus +
+   critical_section_bonus`. Record `gap_score` per topic in meta.json.
+3. Rank topics. The top 2–5 by gap score are marked `deepen: true` — they get the most
+   research effort in Stage 3 and the most reviewer attention in Stage 6.
+
+Apply S3 anti-sycophancy to the plan: no "this could work" — state whether it will and
+what's missing.
+
+---
+
+### Stage 3 — Research ×N (Performer subagents, isolated, parallel) (S4, C1)
+
+Output: `03-research/t1.md … tN.md`
+
+Dispatch N Claude Task subagents, one per topic. **Each subagent is isolated (C1)** — it
+receives only its topic spec + relevant `_refs/`, never the Conductor's history. High-gap
+topics (`deepen: true`) get richer briefs and, if warranted, a second research pass.
+Pure Claude work — no ChatGPT.
+
+---
+
+### Stage 4 — Synthesize (Synthesizer SUBAGENT, isolated) (C1)
+
+Output: `04-draft-vN.md`
+
+**Dispatch a dedicated Synthesizer Task subagent.** It receives the N research files + the
+draft template + (on REVISE) the `must_fix[]` list — and nothing else from the main
+session. It returns `04-draft-vN.md`. The Conductor does not synthesize inline; this keeps
+the main context flat (C1).
+
+On REVISE rounds, `must_fix[]` items are injected here as explicit constraints, in
+CRITICAL → MAJOR → MINOR order.
+
+---
+
+### Stage 5.5 — DETERMINISTIC PRE-GATE (⑧)
+
+Runs in code/bash. No ChatGPT, no judgment. Run `scripts/pre_gate.sh <draft> [reflist]`.
+Hard checks: no empty sections; citations ↔ references match; no placeholders
+(TODO/TBD/[?]/XXX/Anonymous); unit/notation scan; LaTeX compiles (0 undefined refs/cites)
+if applicable. ANY FAIL → fix → re-run. Only full PASS unlocks Stage 6. Output:
+`04-pregate-vN.md`.
+
+---
+
+### Stage 6 — Review (ChatGPT, four sub-passes, isolated dispatch) (①②③④⑤⑦, C1)
+
+Run in order. Save EVERY raw response verbatim into `traces/` (⑤). The Conductor dispatches
+review consolidation to a subagent where heavy (C1), keeping only the consolidated
+`05-review-vN.md` in main context.
+
+**6a — Blind Scoring (①, NEW window every round).** Open a brand-new ChatGPT window.
+Paste `review-prompts.md` §6a (begins "fresh, zero-context review; ignore prior rounds").
+The 6a score is the ONLY number feeding the gate. Schema: overall score 0–10; verdict
+Ready/Almost/No; weaknesses ranked CRITICAL>MAJOR>MINOR (②) with the 4-question rule.
+
+**6b — Persona Passes (③, separate windows).** Run the `persona_set` from meta.json
+(`persona-sets.md`). Each persona = its own window, one narrow lens, 4-question findings.
+Concentrate persona effort on `deepen: true` topics (S4 linkage).
+
+**6c — Claim→Evidence Web Audit (④, Conductor + WebSearch).** Extract every standard
+citation (IGC/API/ASME/ISO/SOLAS), numeric claim, literature citation. Verify each via
+web. Tag `[WEB-VERIFIED]` / `[WEB-CONTRADICTED]`→CRITICAL / `[WEB-INCONCLUSIVE]`→MAJOR
+(describe at concept level, no clause number asserted). Never assert a standard's clause
+without confirming the original text.
+
+**6d — Kill-Argument (⑦, NEW window).** Paste `review-prompts.md` §6d. ≤200-word strongest
+rejection. New fatal flaw → CRITICAL.
+
+**Consolidate** 6a–6d into `05-review-vN.md`, findings CRITICAL→MINOR (②), raw text in
+`<details>` (⑤). Build `must_fix[]` (CRITICAL+MAJOR).
+
+---
+
+### Stage 7 — DECIDE GATE (⑥, deterministic) + regression (⑤)
+
+The Conductor RUNS, does not judge. `scripts/score_gate.py <run-dir>`:
+
+```
+PASS    if blind_score(6a) >= PASS_THRESHOLD (default 7)
+        AND CRITICAL == 0 AND web_contradicted == 0 AND regression == 0
+        AND all acceptance_criteria met
+REVISE  if not PASS AND round < max_rounds AND regression == 0
+RESTART if regression > 0  (prior-resolved item returned → premise/plan wrong)
+        OR round >= max_rounds AND not PASS
 ```
 
-5. 같은 Performer를 재dispatch — `<clarifications>` 섹션에 새 답변 포함. 다른 Performer는 영향 없음.
-6. 같은 토픽에서 escalation은 라운드당 1회만 허용. 두 번째 escalation 시 사용자에게 알리고 `suggested_default`로 강제 진행.
+Regression (⑤): compares this round's CRITICAL/MAJOR against prior-resolved items; a
+reappearance auto-escalates to RESTART. On RESTART, if the failure traces to a `decisions[]`
+entry, return to CHALLENGE (1.5), else to Plan (2).
 
-**산출물**: Conductor가 subagent의 최종 메시지(텍스트)를 받아 `$RUN_DIR/03-research/<topic_id>.md`로 저장.
+PASS → `final.md`. REVISE → round N+1. 
 
-### 4. Synthesize (Conductor)
+---
 
-- 입력:
-  - `$RUN_DIR/03-research/*.md` (모든 Performer 결과)
-  - `$RUN_DIR/01-brief.md` (objective, constraints, refs index)
-  - Round ≥ 2: `$RUN_DIR/05-review-v(N-1).md`의 must_fix (전체 — Performer가 못 본 synthesis-level 이슈도 포함)
-- 출력: `$RUN_DIR/04-draft-v<round>.md`
+## Runtime State
 
-통합 시 원칙:
-1. 모든 토픽 결과를 명시적으로 인용/통합 (드롭 금지)
-2. **must_fix 적용 양분**: Performer 단계에서 이미 본 항목(scope_topic_id가 토픽에 매칭)은 Performer 출력에 반영된 것을 인용/통합. Synthesis-level 항목(scope_topic_id=null) 또는 Performer가 미해결로 남긴 항목은 통합 단계에서 Conductor가 직접 처리.
-3. 라운드 N≥2 통합본 마지막에 `## Round N 변경사항` 섹션 추가 — 직전 must_fix 각 항목에 대해 "어떻게 반영됐는지" 한 줄씩 명기. 이는 다음 라운드 Reviewer가 점검할 대상.
-4. 최종 산출물 형식은 `01-brief.md`의 `constraints` 필드 따름 (한국어 / 인용 필수 / 수식 포함 등).
-
-### 4.5. Pre-Gate (⑧ deterministic pre-gate)
-
-리뷰에 ChatGPT 비용/시간을 쓰기 전에 **결정론적 사전 검증**을 통과해야 한다.
-
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/pre_gate.sh" "$RUN_DIR/04-draft-v<round>.md"
+```
+.orchestra/runs/<run-id>/
+├── 01-brief.md
+├── 01.5-challenge.md          ← S1/S2 challenge record
+├── 02-research-plan.md         ← includes per-topic gap_score (S4)
+├── 03-research/{t1..tN}.md
+├── 04-draft-vN.md              ← produced by isolated Synthesizer (C1)
+├── 04-pregate-vN.md            ← ⑧
+├── 05-review-vN.md             ← ①②③④⑤⑦ consolidated
+├── final.md
+├── _refs/
+├── traces/                     ← ⑤ raw per-pass reviews
+└── meta.json                   ← criteria, decisions[] (C2), scores[], gaps, regression
 ```
 
-- 빈 섹션, 깨진 인용/링크, 누락된 필수 섹션, 자리표시자(TODO/TBD) 등 기계적으로 잡히는 결함을 검사한다.
-- **FAIL이면 Conductor가 draft를 수정하고 재실행한다. PASS 전에는 Stage 5로 진행하지 않는다.**
-- 자동화에 의존하지 않는다 — MANUAL 모드에서도 동일하게 실행되는 순수 스크립트.
+### meta.json schema (v0.7.0)
 
-### 5. Review (ChatGPT) — 4-pass 하드닝
-
-리뷰는 단일 패스가 아니라 4개 서브패스로 수행한다. 각 서브패스의 프롬프트는 `review-prompts.md`,
-페르소나 정의는 `persona-sets.md`를 따른다. **모든 서브패스의 원문 응답(raw)은 그대로 보존한다(⑤).**
-
-**5a. Blind 스코어링 (① reviewer-bias guard)**
-1. `reviewer-prompt.md`의 **XML-tagged + JSON-output 템플릿**을 사용:
-   - `<objective>`, `<success_criterion>`, `<constraints>`, `<references>`, `<draft>` 섹션 채우기
-   - Round ≥ 2면 `<previous_review>` 섹션에 직전 라운드 `must_fix` JSON 배열 첨부 (Reviewer가 각 항목 해결 여부 점검하도록)
-   - `<consistency_rules>`에서 PASS-but-low-score / PASS-with-must_fix 자기모순 차단 명시
-   - 출력 형식: 단일 fenced JSON 코드블록, `must_fix` 항목마다 `scope_topic_id` 필드 포함
-   - 트렁케이션 규칙은 Stage 2와 동일 (8KB 한도, head 4K + tail 1K)
-   ```
-   $RUN_DIR/_tmp/review-prompt-v<round>.md
-   ```
-2. reviewer-bridge로 호출. **매 라운드 반드시 새(blank) ChatGPT 창에서 수행한다(①)** — 직전 대화 맥락이 점수를 오염시키지 않도록:
-   ```bash
-   STAGE5_MODEL=$(python3 "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/frontmatter_get.py" \
-     "$RUN_DIR/01-brief.md" stage5_model)
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/reviewer-bridge.sh" \
-     --model "$STAGE5_MODEL" \
-     "$RUN_DIR/_tmp/review-prompt-v<round>.md" \
-     "$RUN_DIR/_review/05a-blind-v<round>.md"
-   ```
-
-**5b. Persona 패스 (③ anti-groupthink)**
-- `persona-sets.md`에서 `01-brief.md`의 `persona_set`(도메인 기반, Stage 1 Q5에서 선택)에 해당하는 페르소나들을 가져온다.
-- 각 페르소나마다 `review-prompts.md`의 persona 템플릿으로 **별도 창**에서 1회씩 리뷰 → `$RUN_DIR/_review/05b-<persona_id>-v<round>.md`로 raw 저장.
-
-**5c. Claim→근거 웹 감사 (④)**
-- draft에서 검증 가능한 주장(표준 조항, 수치, 인용)을 추출.
-- Conductor가 **WebSearch/WebFetch**로 각 주장을 1차 출처에 대조. 미확인 주장은 finding으로 기록.
-- **표준의 조항은 웹 확인 없이 단정하지 않는다.** 결과를 `$RUN_DIR/_review/05c-claim-audit-v<round>.md`에 저장.
-
-**5d. Kill-argument 적대 검토 (⑦)**
-- `review-prompts.md`의 kill-argument 템플릿으로 **새 창**에서 "이 결론을 무너뜨려라" 패스 수행 → `$RUN_DIR/_review/05d-kill-v<round>.md`.
-
-**통합 (② severity 정렬, ⑤ raw 보존)**
-- 위 4개 서브패스의 finding을 하나로 합쳐 `$RUN_DIR/05-review-v<round>.md` 생성.
-- `must_fix[]`는 각 항목에 `scope_topic_id`와 `severity`(CRITICAL/MAJOR/MINOR) 포함, **CRITICAL→MAJOR→MINOR 순으로 정렬**.
-- 종합 점수는 5a blind 스코어를 기준으로 하되 5b–5d에서 발견된 CRITICAL은 점수 상한을 제한한다(자기모순 차단).
-- `_review/` 하위 raw 파일은 절대 삭제/요약 압축하지 않는다 — forensic trace로 보존(⑤).
-
-### 6. Decide
-
-```bash
-PASS_THRESHOLD=$(python3 "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/frontmatter_get.py" \
-  "$RUN_DIR/01-brief.md" pass_threshold 2>/dev/null || echo "8.0")
-MAX_ROUNDS=$(python3 "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/frontmatter_get.py" \
-  "$RUN_DIR/01-brief.md" max_rounds 2>/dev/null || echo "3")
-
-DECISION=$(bash "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/score-check.sh" \
-  "$RUN_DIR/05-review-v<round>.md" "$PASS_THRESHOLD" "$round" "$MAX_ROUNDS")
+```json
+{
+  "run_id": "20260617-pe-process-model",
+  "goal": "...",
+  "schema_version": "0.7.0",
+  "modes": { "plan": "deep-research", "review": "pro-reasoning" },
+  "persona_set": "lh2-paper",
+  "forcing_question_route": "research-paper",
+  "scope_mode": "HOLD",
+  "acceptance_criteria": ["...", "..."],
+  "decisions": [
+    {"what": "...", "why": "...", "evidence_that_would_change_it": "..."}
+  ],
+  "pass_threshold": 7,
+  "max_rounds": 5,
+  "topics": [
+    {"id": "t1", "gap_score": 7, "deepen": true},
+    {"id": "t2", "gap_score": 2, "deepen": false}
+  ],
+  "rounds": [
+    {"n": 1, "blind_score": 4, "critical": 3, "major": 5,
+     "web_contradicted": 1, "criteria_met": false, "regression": 0, "verdict": "REVISE",
+     "resolved_items": [], "findings": ["stream-table-45K"]}
+  ]
+}
 ```
 
-**Acquit-gate 분리 (⑥)**: 점수만으로 통과시키지 않는다. 미해결 CRITICAL `must_fix`가 하나라도 있으면 점수가 임계치를 넘어도 PASS가 아니라 REVISE다 (채점과 finding-해결을 독립적으로 평가). `score-check.sh`가 이 게이트를 적용하며, deterministic 구현 변형은 `scripts/score_gate.py`(정의는 `references/verification-mechanisms.md` ⑥) 참조.
+---
 
-`$DECISION`은 `<VERDICT> <SCORE>` 형식 한 줄 (예: `PASS 8.7`, `REVISE 7.0`, `PASS_WITH_WARNINGS 6.5`, `PARTIAL 0`, `PARSE_ERROR 0`).
+## Context Durability — compaction priority (C3)
 
-스크립트 출력 verdict별 분기:
+If the context window fills and the system triggers compaction, preserve in THIS order
+(highest first). Never drop a higher tier to keep a lower one:
 
-- `PASS` → finalize (아래 절차 참조)
-- `PASS_WITH_WARNINGS` → finalize, 단 final.md 상단에 "max_rounds 도달, REVISE 잔여 이슈 있음" 헤더 추가
-- `REVISE` AND round < max_rounds → round++ 후 **Stage 3부터 재실행**. must_fix는 다음 라운드 research-worker 프롬프트(Stage 3)와 Synthesize 프롬프트(Stage 4) **양쪽**에 자동 주입됨
-- `RESTART` → Stage 2부터 재실행 (round는 카운트 유지)
-- `PARTIAL` → reviewer-bridge가 부분 응답 판정. 사용자에게 재요청 여부 질문 (기본: 같은 라운드 재실행)
-- `PARSE_ERROR` → 사용자에게 raw 리뷰 보여주고 수동 verdict 입력 요청
+1. `acceptance_criteria` — what "done" means
+2. `decisions[]` with their "why" (C2) — why the scope is what it is
+3. Current stage's output file path + the active `must_fix[]`
+4. The latest blind score and open CRITICAL findings
+5. Everything else (prose history, prior-round narrative)
 
-**finalize 절차 (PASS / PASS_WITH_WARNINGS 공통)**:
+Because heavy stages run in isolated subagents (C1) and all state is on disk, a fresh
+session can resume from `meta.json` + the latest stage files. On startup: if an in-progress
+`meta.json` exists with timestamp < 24h, read it + latest stage files, give a 2-sentence
+"resuming from Stage X" summary, and continue. Do NOT silently re-litigate `decisions[]` —
+treat them as settled with their recorded rationale; if reversing one, say so explicitly
+and supersede it in the log.
 
-```bash
-# 1. 최종 draft를 final.md로 복사
-cp "$RUN_DIR/04-draft-v<round>.md" "$RUN_DIR/final.md"
+---
 
-# 2. Provenance 섹션 자동 부착
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/orchestra/scripts/build-provenance.py" \
-  "$RUN_DIR" --plugin-version 0.6.0 >> "$RUN_DIR/final.md"
+## Key Rules
 
-# 3. PASS_WITH_WARNINGS인 경우 상단에 경고 헤더 prepend (sed 또는 임시 파일)
+- **CHALLENGE before produce (S1)** — never skip Stage 1.5. Verifying the wrong thing
+  perfectly is the most expensive failure.
+- **Blind scoring is ALWAYS a new window (①)** — never reuse a prior round's window for 6a.
+- **Synthesize and Review run in isolated subagents (C1)** — the Conductor coordinates by
+  file path, never inherits stage weight into the main session.
+- **Preserve the "why" (C2)** — every scope decision logged with its rationale.
+- **Pre-gate before review (⑧)** — never spend a manual ChatGPT pass on mechanical defects.
+- **Standards are guilty until web-verified (④)** — unconfirmed clause = MAJOR minimum,
+  concept-level description only.
+- **The gate decides, not the Conductor (⑥)** — run `score_gate.py`, obey it.
+- **Save FULL raw ChatGPT responses (⑤)** — never summarize reviews.
+- **Anti-sycophancy (S3)** — banned phrases replaced by position + falsifiability, in
+  Brief, Challenge, and Plan, not just Review.
+- **Do not fabricate** — web-verification reports what was found; never invents numbers.
+
+---
+
+## Known Limits (honest boundaries)
+
+This skill hardens verification as far as a manual-paste setup allows, but two limits are
+structural, not bugs — naming them is part of using the tool well:
+
+1. **The gate trusts the number you enter.** `score_gate.py` is deterministic over the
+   `blind_score` you transcribe from ChatGPT (6a). If that number is mis-transcribed or
+   self-edited, the gate faithfully computes the wrong verdict. Mitigation: the full raw 6a
+   response is preserved verbatim in `traces/` (⑤), so any score is auditable against its
+   source after the fact. The discipline is to transcribe honestly; the trace makes lapses
+   detectable, not impossible.
+2. **Manual window load scales with rounds.** One round is ~6 ChatGPT windows (1 plan + 1
+   blind + 3 persona + 1 kill); three rounds ~16. This is real effort. Mitigation:
+   confidence-gap weighting (S4) concentrates persona effort on `deepen: true` topics, and
+   the deterministic pre-gate (⑧) prevents wasted passes — but a thorough run is genuinely a
+   focused work session, not a one-click action. If that load is too high for a given task,
+   reduce `max_rounds` or the persona count rather than skipping CHALLENGE or blind-scoring.
+
+Neither limit is closed by adding more machinery; both are inherent to manual cross-model
+verification. They resolve cleanly only with official API access (see `manual-vs-auto.md`).
+
+
+
+```
+/plugin marketplace add https://github.com/Luckguy1324-sudo/lucky_orchestra-plugin
+/plugin install orchestra@lucky-orchestra
 ```
 
-Provenance 섹션은 run_id, started_at, 사용 모델, 라운드별 verdict/score, 참조자료 목록, 생성된 파일 목록을 자동 정리한다 — final.md만 보면 어떤 과정으로 만들어졌는지 추적 가능.
+After install, `/orchestra` is available. Optional Playwright automation is opt-in
+(`scripts/setup.sh`) — MANUAL paste is the default and loses zero rigor.
 
-매 분기마다 `meta.json`의 `verdict_history`에 push.
+## Usage
 
-## 진행 보고 패턴
-
-각 Stage 종료 시 1줄 보고:
 ```
-[Stage 3/6] Research: 3개 토픽 병렬 진행 중 (worker-1/2/3)
-[Stage 5/6] Review: ChatGPT Pro Deep Research 응답 대기 (예상 5-30분)
-[Stage 6/6] Decide: verdict=REVISE, must_fix 2개. 라운드 2 진입
+/orchestra 폴리에틸렌 공정모델 논문용 설계
+/orchestra                                    # → Brief + CHALLENGE first
+/orchestra 공정모델 설계. 참조: @./refs/choi-2025.pdf
 ```
 
-## 중단/재개
+## References
 
-`meta.json`에 `current_stage`, `round`를 매번 업데이트. 같은 run-id로 재진입 시 그 단계부터 이어 실행.
-
-## 안티패턴
-
-- **Stage 2 건너뛰기**: Conductor가 자기 머리로 토픽 정하지 말 것. 반드시 ChatGPT에 위임.
-- **Performer가 다른 토픽 정보 보기**: 각 Performer 프롬프트에는 자기 토픽 정보만 넣는다 (격리).
-- **Review 결과 임의 해석**: verdict는 score-check.sh가 산출한 값을 그대로 따른다. Conductor가 "괜찮아 보이는데" 같은 판단으로 우회 금지.
-- **무한 루프**: max_rounds 안전장치 절대 우회 금지.
-- **Pre-gate 건너뛰기**: pre_gate.sh PASS 전에 Stage 5 진입 금지 (⑧).
-- **오염된 창에서 blind 스코어링**: 5a는 항상 새 ChatGPT 창에서. 직전 라운드 대화가 남은 창 재사용 금지 (①).
-- **raw trace 손실**: `_review/` 하위 서브패스 원문을 삭제·요약·덮어쓰기 금지 (⑤).
-- **웹 확인 없는 단정**: 표준 조항/수치는 1차 출처 대조 없이 사실로 단정 금지 (④).
-- **점수만으로 acquit**: 미해결 CRITICAL이 있으면 점수가 높아도 PASS 금지 (⑥).
+- `verification-mechanisms.md` — rationale + evidence for ①–⑧
+- `scoping-rules.md` — CHALLENGE gate, scope modes, confidence-gap rubric, banned phrases (S1–S4)
+- `forcing-questions.md` — stage-routed forcing questions + pushback patterns (S2)
+- `context-durability.md` — isolation, decision log, compaction priority (C1–C3)
+- `review-prompts.md` — exact ChatGPT prompts for 6a/6b/6c/6d
+- `persona-sets.md` — domain persona definitions (③)
+- `manual-vs-auto.md` — manual-paste vs automation
+- `examples/paper-process-model.md` — worked end-to-end example

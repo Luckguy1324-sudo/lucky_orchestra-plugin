@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# pre_gate.sh — Mechanism ⑧: deterministic pre-gate.
+# pre_gate.sh — Mechanism ⑧: deterministic pre-gate (Stage 5.5).
 # Runs mechanical checks on a draft BEFORE any ChatGPT review is spent on it.
 # Exit 0 = all hard checks PASS (review may proceed). Exit 1 = a hard check FAILED.
 #
 # Usage: pre_gate.sh <draft-file> [reference-list-file]
-#
 # Pure bash/grep — no model judgment, no network. Safe to run repeatedly.
 
 set -uo pipefail
@@ -24,8 +23,6 @@ echo "Draft: $DRAFT"
 echo
 
 # --- Check 1: no empty sections -----------------------------------------------
-# Every markdown header (## or deeper) must have at least one non-blank,
-# non-header line before the next header or EOF.
 echo "[1] Empty-section check"
 empty_sections=$(awk '
   /^#{2,}[[:space:]]/ {
@@ -55,8 +52,6 @@ else
 fi
 
 # --- Check 3: citation ↔ reference matching -----------------------------------
-# Citations are tokens like [Author2025] or \cite{key}. If a reference list file
-# is provided, every cited key must appear in it.
 echo "[3] Citation ↔ reference matching"
 if [[ -n "$REFLIST" && -f "$REFLIST" ]]; then
   cites=$(grep -oE '\\cite\{[^}]+\}|\[[A-Za-z][A-Za-z0-9_-]*[0-9]{4}[a-z]?\]' "$DRAFT" \
@@ -80,9 +75,7 @@ else
   echo "    SKIP — no reference list provided (pass [reference-list-file] to enable)"
 fi
 
-# --- Check 4: notation/unit consistency (heuristic) ---------------------------
-# Flags the same symbol appearing with conflicting unit tokens nearby.
-# Heuristic only — surfaces candidates for human/reviewer attention, never blocks.
+# --- Check 4: notation/unit consistency (heuristic, advisory) -----------------
 echo "[4] Notation/unit consistency scan (advisory)"
 units=$(grep -oE '[0-9]+(\.[0-9]+)?[[:space:]]*(barg|bar|K|°C|kg/h|m3/h|kW|MW|kJ/kg)' "$DRAFT" \
           | sort | uniq -c | sort -rn | head -20 || true)
@@ -121,9 +114,9 @@ fi
 
 echo
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "=== PRE-GATE: PASS — review may proceed (Stage 5) ==="
+  echo "=== PRE-GATE: PASS — review may proceed (Stage 6) ==="
   exit 0
 else
-  echo "=== PRE-GATE: FAIL — fix the above, then re-run Stage 4.5. Do NOT review yet. ==="
+  echo "=== PRE-GATE: FAIL — fix the above, then re-run Stage 5.5. Do NOT review yet. ==="
   exit 1
 fi

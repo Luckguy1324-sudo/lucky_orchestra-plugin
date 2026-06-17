@@ -1,34 +1,19 @@
 #!/usr/bin/env python3
 """score_gate.py — Mechanism ⑥ (deterministic acquit-gate) + ⑤ (regression detection).
 
-The Conductor RUNS this. It does not judge. The verdict is a fixed rule over the
-external reviewer's blind score and finding counts recorded in meta.json.
+The Conductor RUNS this; it does not judge. The verdict is a fixed rule over the external
+reviewer's blind score and finding counts in meta.json.
 
 Usage:
     score_gate.py <run-dir>
 
 Reads <run-dir>/meta.json, evaluates the latest round, prints a verdict
-(PASS / REVISE / RESTART) and the reason, and writes the verdict back into meta.json.
-Exit code: 0 = PASS, 10 = REVISE, 20 = RESTART, 2 = error.
+(PASS / REVISE / RESTART) with reasons, writes the verdict back into meta.json.
+Exit: 0 = PASS, 10 = REVISE, 20 = RESTART, 2 = error.
 
-meta.json relevant shape:
-{
-  "pass_threshold": 7,
-  "max_rounds": 5,
-  "acceptance_criteria": ["...", "..."],
-  "rounds": [
-    {
-      "n": 1,
-      "blind_score": 4,
-      "critical": 3,
-      "major": 5,
-      "web_contradicted": 1,
-      "criteria_met": false,
-      "resolved_items": ["item-a", "item-b"],   # items this round marked resolved
-      "findings": ["item-c", "item-d"]           # CRITICAL/MAJOR finding ids this round
-    }
-  ]
-}
+On RESTART due to regression, if the failure traces to a decisions[] entry the caller should
+return to CHALLENGE (Stage 1.5); otherwise to Plan (Stage 2). This script flags which by
+checking whether any regressed finding id appears in a decision's text.
 """
 import json
 import sys
@@ -36,11 +21,11 @@ from pathlib import Path
 
 
 def load_meta(run_dir: Path) -> dict:
-    meta_path = run_dir / "meta.json"
-    if not meta_path.exists():
+    p = run_dir / "meta.json"
+    if not p.exists():
         print(f"ERROR: meta.json not found in {run_dir}", file=sys.stderr)
         sys.exit(2)
-    with meta_path.open(encoding="utf-8") as fh:
+    with p.open(encoding="utf-8") as fh:
         return json.load(fh)
 
 
@@ -50,13 +35,20 @@ def save_meta(run_dir: Path, meta: dict) -> None:
 
 
 def detect_regression(rounds: list, current: dict) -> list:
-    """Mechanism ⑤: a finding in the current round that was marked resolved in any
-    earlier round is a regression."""
+    """Mechanism ⑤: a current finding marked resolved in an earlier round is a regression."""
     resolved_before = set()
     for r in rounds[:-1]:
         resolved_before.update(r.get("resolved_items", []))
-    current_findings = set(current.get("findings", []))
-    return sorted(resolved_before & current_findings)
+    return sorted(resolved_before & set(current.get("findings", [])))
+
+
+def traces_to_decision(regressions: list, decisions: list) -> bool:
+    """True if any regressed finding id is referenced in a decision's text → restart at CHALLENGE."""
+    blob = " ".join(
+        f"{d.get('what','')} {d.get('why','')} {d.get('evidence_that_would_change_it','')}"
+        for d in decisions
+    ).lower()
+    return any(str(item).lower() in blob for item in regressions)
 
 
 def evaluate(meta: dict):
@@ -81,28 +73,26 @@ def evaluate(meta: dict):
     if regressions:
         cur["regression_items"] = regressions
 
-    # --- Deterministic rule (mechanism ⑥) ---
     reasons = []
     is_pass = (
-        score >= threshold
-        and critical == 0
-        and web_contra == 0
-        and regression_count == 0
-        and criteria_met
+        score >= threshold and critical == 0 and web_contra == 0
+        and regression_count == 0 and criteria_met
     )
 
     if is_pass:
         verdict = "PASS"
-        reasons.append(f"blind_score {score} >= threshold {threshold}")
-        reasons.append("0 CRITICAL, 0 web-contradicted, 0 regression")
-        reasons.append("all acceptance_criteria met")
+        reasons += [f"blind_score {score} >= threshold {threshold}",
+                    "0 CRITICAL, 0 web-contradicted, 0 regression",
+                    "all acceptance_criteria met"]
     elif regression_count > 0:
         verdict = "RESTART"
-        reasons.append(
-            f"{regression_count} regression(s) — previously-resolved item(s) returned: "
-            + ", ".join(regressions)
-        )
-        reasons.append("a patch loop reintroducing old defects signals the plan is wrong")
+        restart_at = ("CHALLENGE (Stage 1.5)"
+                      if traces_to_decision(regressions, meta.get("decisions", []))
+                      else "Plan (Stage 2)")
+        cur["restart_at"] = restart_at
+        reasons += [f"{regression_count} regression(s): " + ", ".join(regressions),
+                    "a prior-resolved item returned → premise/plan is wrong",
+                    f"restart at {restart_at}"]
     elif n < max_rounds:
         verdict = "REVISE"
         if score < threshold:
@@ -116,8 +106,9 @@ def evaluate(meta: dict):
         reasons.append(f"round {n} < max_rounds {max_rounds} — iterate")
     else:
         verdict = "RESTART"
-        reasons.append(f"round {n} reached max_rounds {max_rounds} without PASS")
-        reasons.append("recommend RESTART from Plan, or user may force-stop")
+        cur["restart_at"] = "Plan (Stage 2)"
+        reasons += [f"round {n} reached max_rounds {max_rounds} without PASS",
+                    "recommend RESTART from Plan, or user may force-stop"]
 
     cur["verdict"] = verdict
     return verdict, reasons
@@ -147,10 +138,10 @@ def main() -> None:
         print("→ Write final.md.")
         sys.exit(0)
     elif verdict == "REVISE":
-        print("→ Round N+1: re-run Stage 4 (Synthesize) with must_fix injected.")
+        print("→ Round N+1: dispatch a fresh Synthesizer subagent (C1) with must_fix injected.")
         sys.exit(10)
     else:
-        print("→ RESTART: return to Stage 2 (Plan Research).")
+        print(f"→ RESTART: return to {meta['rounds'][-1].get('restart_at', 'Plan (Stage 2)')}.")
         sys.exit(20)
 
 

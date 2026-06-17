@@ -1,63 +1,23 @@
 {
   "name": "orchestra",
-  "version": "0.6.0",
-  "description": "Multi-AI 협업 오케스트레이션 — Claude Code Opus 4.8이 지휘자가 되어 본인(Performer)과 ChatGPT Pro Deep Research(Reviewer)를 조율해 하나의 결과물을 도출. /orchestra 명령으로 6단계 워크플로(Brief → Plan Research → Research × N → Synthesize → Review → Decide)를 실행하며, 강화된 교차검증(reviewer-bias guard, severity 태깅, anti-groupthink 페르소나, 웹 검증, forensic trace, acquit-gate, kill-argument, deterministic pre-gate)으로 결과물을 검증한다.",
+  "version": "0.7.0",
+  "description": "Multi-AI collaboration orchestration — Claude Code Opus conducts, coordinating itself (Performer) and ChatGPT Pro (Reviewer) through a scoping-hardened, context-durable workflow with 8 cross-validation mechanisms, a premise-challenge gate, confidence-gap-weighted research, and isolated-subagent execution.",
   "author": {
-    "name": "jungwooyoon"
+    "name": "Luckguy1324-sudo",
+    "url": "https://github.com/Luckguy1324-sudo"
   },
   "license": "MIT",
-  "homepage": "https://github.com/Luckguy1324-sudo/lucky_orchestra-plugin",
-  "repository": "https://github.com/Luckguy1324-sudo/lucky_orchestra-plugin",
-  "userConfig": {
-    "execution_mode": {
-      "type": "string",
-      "title": "Execution mode",
-      "description": "browser (default, uses ChatGPT subscription via Playwright) | manual (paste prompts yourself) — api/hybrid modes planned for v0.4+",
-      "default": "browser"
-    },
-    "browser_profile_dir": {
-      "type": "directory",
-      "title": "Browser profile directory",
-      "description": "Persistent Playwright profile directory for ChatGPT login (default: ~/.orchestra/chrome-profile/)"
-    },
-    "headless": {
-      "type": "boolean",
-      "title": "Headless browser",
-      "description": "Run Playwright without visible browser UI. Disable to handle 2FA/CAPTCHA manually.",
-      "default": false
-    },
-    "pass_threshold": {
-      "type": "number",
-      "title": "Reviewer pass threshold",
-      "description": "Score below this triggers REVISE even if reviewer says PASS",
-      "default": 8.0
-    },
-    "openai_api_key": {
-      "type": "string",
-      "title": "Optional OpenAI API key",
-      "description": "Reserved for future API/hybrid execution mode (v0.4+)",
-      "sensitive": true,
-      "required": false
-    },
-    "anthropic_api_key": {
-      "type": "string",
-      "title": "Optional Anthropic API key",
-      "description": "Reserved for future SDK reliability mode (v0.4+)",
-      "sensitive": true,
-      "required": false
-    }
-  },
   "keywords": [
-    "multi-agent",
     "orchestration",
-    "chatgpt",
-    "deep-research",
-    "claude-code",
-    "research",
-    "review-loop",
-    "cross-validation",
-    "adversarial-review",
     "multi-model",
-    "korean"
-  ]
+    "cross-validation",
+    "claude",
+    "chatgpt",
+    "research",
+    "adversarial-review",
+    "scoping",
+    "context-management"
+  ],
+  "commands": "./commands",
+  "skills": "./skills"
 }
