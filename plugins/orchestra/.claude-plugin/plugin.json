@@ -1,7 +1,7 @@
 {
   "name": "orchestra",
-  "version": "0.7.0",
-  "description": "Multi-AI collaboration orchestration — Claude Code Opus conducts, coordinating itself (Performer) and ChatGPT Pro (Reviewer) through a scoping-hardened, context-durable workflow with 8 cross-validation mechanisms, a premise-challenge gate, confidence-gap-weighted research, and isolated-subagent execution.",
+  "version": "0.8.0",
+  "description": "Multi-AI collaboration orchestration — Claude Code Opus conducts, coordinating itself (Performer) and ChatGPT Pro (Reviewer) through a scoping-hardened, context-durable workflow. v0.8.0 adds an early breadth-first knowledge-building Landscape pass, a dynamic research-coverage standard (source-type/recency/triangulation) with a missing-coverage review lens, two-layer process-physics grounding (universal invariants + decision-driven design criteria), and a convergence-driven decide gate (confirmation pass, disagreement ledger, human-escalation on stall) on top of the 8 verification mechanisms.",
   "author": {
     "name": "Luckguy1324-sudo",
     "url": "https://github.com/Luckguy1324-sudo"
@@ -16,7 +16,9 @@
     "research",
     "adversarial-review",
     "scoping",
-    "context-management"
+    "context-management",
+    "convergence-gate",
+    "process-engineering"
   ],
   "commands": "./commands",
   "skills": "./skills"

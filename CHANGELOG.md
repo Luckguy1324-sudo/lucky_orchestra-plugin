@@ -1,44 +1,68 @@
 # Changelog
 
-## v0.7.0 (2026-06-17) — Scoping + Context Durability
+## v0.8.0 (2026-06-21) — Knowledge-Building + Physics-Grounded + Convergence-Gated
 
-v0.6.0 made the *verification* trustworthy. v0.7.0 makes sure the **right problem** is
-verified, and that a **long run doesn't degrade**. Two new pillars on top of the 8 mechanisms.
+v0.7.0 made verification trustworthy and scoping correct. v0.8.0 closes three remaining
+gaps: (1) the deepest research tool wasn't aimed at building knowledge; (2) process-model
+physics was never checked deterministically; (3) stopping was decided by a round counter,
+which risks a "good-enough" consensus near the limit. Three pillars added, no existing
+mechanism changed.
 
-### Added — Scoping (S)
-- **S1 CHALLENGE gate (Stage 1.5)** — pressure-tests the premise before any production work.
-  Commits a scope mode (EXPAND/SELECTIVE/HOLD/REDUCE), held throughout. Includes the handoff
-  completeness test.
-- **S2 Stage-routed forcing questions** — six forcing questions routed by work stage
-  (research-paper, investment-thesis, pure-engineering, etc.); only the stage-appropriate
-  subset is asked, with pushback patterns for vague answers. `references/forcing-questions.md`.
-- **S3 Anti-sycophancy constraints** — banned phrases with required replacements, applied in
-  Brief, Challenge, and Plan (not only Review). Position + falsifiability condition required.
-- **S4 Confidence-gap-weighted research** — `scripts/confidence_gap.py` scores each research
-  topic; top 2–5 by gap get deeper research (Stage 3) and more reviewer attention (Stage 6).
+### Added — Knowledge building (R)
+- **R1 Landscape pass (Stage 0.5)** — a bounded, breadth-first knowledge survey BEFORE the
+  CHALLENGE gate, so a blank-page premise is pressure-tested against the actual field, not
+  guesses. ChatGPT Deep Research is pointed here (knowledge-building), not only at planning.
+  Routed: required for `research-paper`/`blank-page`, skipped otherwise.
+  `references/landscape-template.md`, output `00-landscape.md`.
+- **R2 Research-coverage standard** — per-topic `required_sources` (peer/industry/standards/
+  recent_trend), a recency floor (pre_gate Check 4), and triangulation (≥2 sources for
+  load-bearing quantitative claims). Dynamic per topic, not hard-coded.
+  `references/research-standards.md`.
+- **R3 Missing-coverage review lens** — Persona D added to every set; asks "what important
+  work/development/datum is ABSENT?" (6c only checks what is present).
 
-### Added — Context durability (C)
-- **C1 Isolated-subagent execution** — Synthesize (Stage 4) and Review consolidation (Stage 6)
-  now run as isolated subagents, like Research already did. The Conductor coordinates by file
-  path; its main context stays flat across rounds → no late-stage rushed artifact.
-- **C2 Decision log** — `meta.json.decisions[]` records every durable scope decision as
-  `{what, why, evidence_that_would_change_it}`. The "why" survives compaction.
-- **C3 Explicit compaction priority** — a fixed tier order (acceptance_criteria > decisions >
-  current stage > scores/findings > prose) so the right things survive a full window.
+### Added — Physics grounding (PH)
+- **2-layer process-physics pre-gate** — `scripts/physics_check.py`, wired into
+  `pre_gate.sh` Check 6. Layer 1 (always): mass & energy closure, 2nd-law / no HX
+  temperature-cross, dimensional sanity. Layer 2 (dynamic): design criteria (ΔT_min, T
+  bounds, tolerance tightening) loaded from machine-readable `check` blocks on
+  `meta.json.decisions[]` — so physical criteria FORM over rounds instead of being assumed.
+  Operates on a structured `streams.json` the Synthesizer emits with the draft.
+
+### Added — Convergence gate (CV)
+- **score_gate.py rewrite** — stopping is now driven by convergence, with the round counter
+  demoted to a safety rail:
+  - **CONFIRM** verdict: a passing blind score must be confirmed by ONE independent blind
+    pass on the same draft (both ≥ threshold, |diff| ≤ 1) — +1 window per run, not per round.
+  - **Depth check**: PASS requires zero fresh MAJOR findings this round (`major_findings`).
+  - **Disagreement ledger (P3)**: a gating Performer-vs-Reviewer disagreement that is not
+    `evidence-resolved` blocks PASS — a papered-over compromise can no longer hide.
+  - **Convergence diagnostic**: at max_rounds, a still-climbing trajectory auto-extends by
+    one round (cap 8); an oscillating/stalled one returns **HUMAN_ESCALATE** with a diagnosis
+    (trajectory, repeated findings, suspected decision) and explicit options — never an
+    auto-pass to end the loop.
+- Default `pass_threshold` raised 7 → 8.
 
 ### Changed
-- Workflow is now 7 stages + 3 gates. Stage numbers shifted: Pre-Gate 4.5→5.5, Review 5→6,
-  Decide 6→7, with new CHALLENGE at 1.5.
-- `score_gate.py` now records `restart_at` (CHALLENGE vs Plan) when a regression traces to a
-  logged decision.
-- `meta.json` schema extended: `decisions[]`, `scope_mode`, `forcing_question_route`,
-  `topics[]` with `gap_score`/`deepen`, `schema_version`.
+- Workflow is now **8 stages + 3 gates** (Landscape inserted at 0.5).
+- `meta.json` schema extended: `landscape`, `research_standards.recency_floor`,
+  `topics[].required_sources`, `disagreements[]`, round `confirm_score` + `major_findings`;
+  `schema_version` → `0.8.0`.
+- Compaction priority (C3) gains a tier: `decisions[]` design-criteria checks rank with
+  acceptance_criteria (they are now enforced, not just rationale).
 
 ### Unchanged
-- All 8 verification mechanisms (①–⑧) operate exactly as in v0.6.0, now on a correctly-scoped
-  problem inside a context-durable run.
+- All 8 verification mechanisms (①–⑧) and the v0.7.0 scoping (S1–S4) / context-durability
+  (C1–C3) pillars operate exactly as before, now on a knowledge-grounded, physics-checked,
+  convergence-gated run.
 - MANUAL mode (ChatGPT Pro by paste) remains default and loses zero rigor.
 
+### Migration
+- Backward compatible: a v0.7.0 `meta.json` still evaluates; missing v0.8.0 fields are
+  treated as empty/false. To use the new guards, add the fields above. The physics check
+  runs only when a `streams.json` is present, so non-process-model runs are unaffected.
+
+## v0.7.0 (2026-06-17) — Scoping + Context Durability
 ## v0.6.0 — 8 hardened verification mechanisms integrated on the v0.5.2 backbone
 ## v0.5.2 — Stage 2.5 Clarification Gate, Performer escalation
 ## v0.4.0 — initial 8-mechanism hardened cross-validation
